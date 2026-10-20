@@ -1,0 +1,17 @@
+**/bin/
+**/obj/
+**/node_modules/
+**/dist/
+**/playwright-report/
+**/test-results/
+.env
+.env.*
+!.env.example
+**/appsettings.Local.json
+**/uploads/
+.local/
+TestResults/
+*.user
+src/backend/DaqqaTid.Api/wwwroot/
+**/App_Data/
+**/*.tsbuildinfo

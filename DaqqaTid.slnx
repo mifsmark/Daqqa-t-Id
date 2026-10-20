@@ -1,0 +1,13 @@
+<Solution>
+  <Folder Name="/src/" />
+  <Folder Name="/src/backend/">
+    <Project Path="src/backend/DaqqaTid.Api/DaqqaTid.Api.csproj" />
+    <Project Path="src/backend/DaqqaTid.Application/DaqqaTid.Application.csproj" />
+    <Project Path="src/backend/DaqqaTid.Domain/DaqqaTid.Domain.csproj" />
+    <Project Path="src/backend/DaqqaTid.Infrastructure/DaqqaTid.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/DaqqaTid.IntegrationTests/DaqqaTid.IntegrationTests.csproj" />
+    <Project Path="tests/DaqqaTid.UnitTests/DaqqaTid.UnitTests.csproj" />
+  </Folder>
+</Solution>

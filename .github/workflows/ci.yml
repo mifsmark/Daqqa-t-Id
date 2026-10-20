@@ -1,0 +1,116 @@
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    services:
+      sql:
+        image: mcr.microsoft.com/mssql/server:2022-latest
+        env:
+          ACCEPT_EULA: Y
+          MSSQL_PID: Developer
+          MSSQL_MEMORY_LIMIT_MB: "2048"
+          MSSQL_SA_PASSWORD: "Local_CI_only_Change9!"
+        ports: [1433:1433]
+        options: >-
+          --health-cmd "/opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P Local_CI_only_Change9! -Q 'SELECT 1' || exit 1"
+          --health-interval 10s --health-timeout 5s --health-retries 20
+    env:
+      TEST_SQL_CONNECTION: "Server=localhost,1433;Database=DaqqaTid_CI;User Id=sa;Password=Local_CI_only_Change9!;Encrypt=False;TrustServerCertificate=True"
+      E2E_SQL_CONNECTION: "Server=localhost,1433;Database=DaqqaTid_E2E;User Id=sa;Password=Local_CI_only_Change9!;Encrypt=False;TrustServerCertificate=True"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            src/frontend/package-lock.json
+            tests/e2e/package-lock.json
+      - name: Restore .NET
+        run: dotnet restore DaqqaTid.slnx
+      - name: Build .NET
+        run: dotnet build DaqqaTid.slnx --configuration Release --no-restore
+      - name: Verify .NET formatting
+        run: dotnet format DaqqaTid.slnx --verify-no-changes --no-restore
+      - name: Unit and integration tests
+        run: dotnet test DaqqaTid.slnx --configuration Release --no-build --logger "console;verbosity=normal"
+      - name: Install frontend dependencies
+        run: npm ci --prefix src/frontend
+      - name: Type check
+        run: npm run check --prefix src/frontend
+      - name: Frontend lint
+        run: npm run lint --prefix src/frontend
+      - name: Frontend tests
+        run: npm test --prefix src/frontend
+      - name: Build frontend
+        run: npm run build --prefix src/frontend
+      - name: Install Playwright dependencies
+        run: npm ci
+        working-directory: tests/e2e
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps chromium
+        working-directory: tests/e2e
+      - name: Install EF tool
+        run: |
+          tool_path="$RUNNER_TEMP/dotnet-tools"
+          dotnet tool install --tool-path "$tool_path" dotnet-ef --version 10.0.13
+          echo "$tool_path" >> "$GITHUB_PATH"
+      - name: Apply migrations to E2E database
+        env:
+          ConnectionStrings__DefaultConnection: ${{ env.E2E_SQL_CONNECTION }}
+          DAQQA_TID_SQL_CONNECTION: ${{ env.E2E_SQL_CONNECTION }}
+        run: dotnet ef database update --project src/backend/DaqqaTid.Infrastructure --startup-project src/backend/DaqqaTid.Api --configuration Release
+      - name: Include frontend in API static assets
+        run: mkdir -p src/backend/DaqqaTid.Api/wwwroot && cp -a src/frontend/dist/. src/backend/DaqqaTid.Api/wwwroot/
+      - name: Start API for browser tests
+        env:
+          ASPNETCORE_ENVIRONMENT: Development
+          ASPNETCORE_URLS: http://127.0.0.1:5080
+          Database__SeedReferenceDataOnStartup: "true"
+          ConnectionStrings__DefaultConnection: ${{ env.E2E_SQL_CONNECTION }}
+        run: |
+          dotnet run --project src/backend/DaqqaTid.Api --configuration Release --no-build > /tmp/daqqatid-api.log 2>&1 &
+          for attempt in $(seq 1 30); do
+            if curl --fail http://127.0.0.1:5080/health/ready; then exit 0; fi
+            sleep 2
+          done
+          cat /tmp/daqqatid-api.log
+          exit 1
+      - name: Run Playwright tests
+        run: npx playwright test
+        working-directory: tests/e2e
+      - name: Publish API
+        run: dotnet publish src/backend/DaqqaTid.Api/DaqqaTid.Api.csproj --configuration Release --no-restore --output publish/app
+      - name: Build reviewed migration bundle and SQL script
+        env:
+          ConnectionStrings__DefaultConnection: ${{ env.E2E_SQL_CONNECTION }}
+          DAQQA_TID_SQL_CONNECTION: ${{ env.E2E_SQL_CONNECTION }}
+        run: |
+          mkdir -p publish/migrations
+          dotnet ef migrations bundle --project src/backend/DaqqaTid.Infrastructure --startup-project src/backend/DaqqaTid.Api --configuration Release --no-build --output publish/migrations/efbundle
+          dotnet ef migrations script --idempotent --project src/backend/DaqqaTid.Infrastructure --startup-project src/backend/DaqqaTid.Api --configuration Release --no-build --output publish/migrations/migrations.sql
+          dotnet ef migrations list --no-connect --project src/backend/DaqqaTid.Infrastructure --startup-project src/backend/DaqqaTid.Api --configuration Release --no-build > publish/migrations/migrations.txt
+          grep -Eo '^[[:space:]]*[0-9]{14}_[[:alnum:]_]+' publish/migrations/migrations.txt | sed 's/^[[:space:]]*//' > /tmp/migration-ids.txt
+          if [ ! -s /tmp/migration-ids.txt ]; then echo '::error::A reviewed database migration is required.'; exit 1; fi
+          cp /tmp/migration-ids.txt publish/migrations/migrations.txt
+          latest_migration="$(tail -n 1 publish/migrations/migrations.txt)"
+          printf 'source_sha=%s\nmigration_id=%s\n' "$GITHUB_SHA" "$latest_migration" > publish/migrations/manifest.txt
+          sha256sum publish/migrations/efbundle | awk '{print "bundle_sha256=" $1}' >> publish/migrations/manifest.txt
+          echo "Migration bundle SHA-256: $(sha256sum publish/migrations/efbundle | cut -d ' ' -f 1)" >> "$GITHUB_STEP_SUMMARY"
+          echo "Migration ID: $latest_migration" >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ci-release
+          path: publish
+          if-no-files-found: error
+          retention-days: 30
