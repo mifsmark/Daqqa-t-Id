@@ -16,7 +16,7 @@ Read the latest owner engineering review on PR #1 (review ID 5592431343, origina
 
 No schema changes were necessary; migration remains `20261020213105_InitialMarketplace`. No Azure deployment or merge was performed. Kingmakers work resources are explicitly excluded. See [STAGING-DEMO.md](STAGING-DEMO.md) for the personal-account, free-tier review and remaining deployment actions. The default infrastructure template remains billable and must not be run for a free-only request.
 
-Local review checks passed: Release build (0 warnings/errors), 15 unit/model tests, 13 integration tests (including seven real SQL-backed scenarios and six hosting/configuration cases), all four frontend tests, type/lint/build, all three browser tests, backend format verification, Bicep compilation and the actual HTTPS staging smoke against SQL Server. The complete hosted CI rerun is pending; no hosted success is inferred from local checks.
+Local review checks passed: Release build (0 warnings/errors), 15 unit/model tests, 13 integration tests (including seven real SQL-backed scenarios and six hosting/configuration cases), all four frontend tests, type/lint/build, all three browser tests, backend format verification, Bicep compilation and the actual HTTPS staging smoke against SQL Server. Hosted CI then passed for source commit `ee604e993c686b96ffb7bc62dbe5672d290f2390`: [manual full-suite run 39554643719](https://github.com/mifsmark/Daqqa-t-Id/actions/runs/39554643719) and [PR run 39554631490](https://github.com/mifsmark/Daqqa-t-Id/actions/runs/39554631490), both verified completed/success through the GitHub API on 21 October 2026. Every CI step succeeded, including real SQL tests, browser tests, the HTTPS Staging lifecycle, API publish, migration bundle/script generation and upload of the unexpired `ci-release` artifact (58,405,777 bytes). This follow-up documentation records those completed runs; later documentation-only revisions do not claim to have been included in those source-commit runs.
 
 Unfinished expansion work from the prior session (messaging, dynamic forms and privacy/media changes) was preserved in a local Git stash named `Preserve unfinished feature expansion before PR1 engineering review fixes`; it was not mixed into this security/staging review fix and remains incomplete.
 
@@ -42,6 +42,7 @@ Unfinished expansion work from the prior session (messaging, dynamic forms and p
 | Mobile/PWA | 375px landing/register have no horizontal overflow; offline fallback works; API/private responses are not service-worker cached |
 | Database | Initial migration generated/applied; model has no pending changes; SQL singleton keys and declared FKs covered by model tests |
 | Infrastructure | Bicep compilation and Compose/YAML configuration checks passed |
+| Hosted CI review rerun | Both source-commit runs above passed all steps; HTTPS Staging smoke and application/migration artifacts included. No Azure deployment was run. |
 | Setup/start | cloud-install.sh executed; dev helper applied migrations, seeded development data and reached SQL readiness/functional API checks; repeat startup preserves existing profiles |
 
 SQL-backed testing found and fixed new-entity tracking errors in worker offerings and booking history, plus replacement ordering for unique/composite keys. Tests retained their original ownership/concurrency assertions.
@@ -68,7 +69,7 @@ Run browser checks from `tests/e2e` with `E2E_BASE_URL` pointing to the running 
 
 ## Remaining launch actions and limits
 
-- Azure deployment needs the owner's subscription/resource authorization, OIDC variables, SQL identities/firewall permissions and deployment review. Exact commands and cost categories are in DEPLOY-AZURE.md. No paid resources were created.
+- Azure deployment needs a separate personal subscription, a reviewed free-only configuration, OIDC variables, SQL identities/firewall permissions and protected demo-admin secrets. Never use Kingmakers work resources. The default Bicep template is billable and must not be run for this free-only request. See STAGING-DEMO.md and DEPLOY-AZURE.md. No resources were created; Azure SQL-backed post-deployment smoke remains unrun until deployment is authorized and configured.
 - Payments are simulated and no card details are collected. Legal/privacy text is a review placeholder. This is a controlled demo/pilot foundation, not a claim of live payment or legal readiness.
 - SMTP and the Azure Blob adapter compile, but live SMTP delivery and Azure managed-identity Blob access have not been exercised against configured cloud accounts. Local media upload/privacy behavior is verified.
 - Booking photos are currently accepted after confirmation; request-stage photos are not implemented. Category-specific dynamic attribute forms, automated matching notifications/SMS, in-app chat, dispute case management and automatic privacy export/erasure are not implemented. Privacy requests are actionable admin tasks; see OPERATIONS.md.
@@ -78,6 +79,6 @@ Run browser checks from `tests/e2e` with `E2E_BASE_URL` pointing to the running 
 
 ## Next three priorities
 
-1. Finish hosted CI review and prepare an isolated fictional staging environment in a personal Azure subscription, using STAGING-DEMO.md; no Kingmakers or unapproved billable resources.
+1. Review the green PR and prepare an isolated fictional staging environment in a personal Azure subscription, using STAGING-DEMO.md; no Kingmakers or unapproved billable resources. Configure a successful manual CI artifact for the exact deployment revision, then run the guarded deployment and Azure smoke.
 2. Complete legal/operational review, configure support/mail, and recruit a small verified worker cohort with assisted onboarding.
 3. Run a locality-focused pilot; measure request-to-confirmation conversion and worker response, then prioritize notifications and the largest observed usability issue.
