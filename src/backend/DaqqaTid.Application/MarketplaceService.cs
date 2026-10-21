@@ -36,7 +36,7 @@ public sealed class SimulatedPaymentLedger : ISimulatedPaymentLedger
     }
 }
 
-public sealed class MarketplaceService(AppDbContext db, ISimulatedPaymentLedger paymentLedger) : IMarketplaceService
+public sealed class MarketplaceService(AppDbContext db, ISimulatedPaymentLedger paymentLedger, TimeProvider clock) : IMarketplaceService
 {
     public async Task<Booking> CreateBookingAsync(Guid customerId, CreateBookingRequest r, CancellationToken ct = default)
     {
@@ -51,8 +51,9 @@ public sealed class MarketplaceService(AppDbContext db, ISimulatedPaymentLedger 
         }
         if (await db.Users.AnyAsync(x => x.Id == customerId && x.IsSuspended, ct)) throw new UnauthorizedAccessException("Account is suspended.");
         if (string.IsNullOrWhiteSpace(r.Summary) || string.IsNullOrWhiteSpace(r.Address) || string.IsNullOrWhiteSpace(r.Locality)) throw new ArgumentException("A summary, address, and locality are required.");
-        var startAt = r.IsAsap && r.StartAt <= DateTimeOffset.UtcNow ? DateTimeOffset.UtcNow.AddMinutes(5) : r.StartAt;
-        var end = BookingRules.EnsureValidInterval(startAt, r.DurationMinutes);
+        var now = clock.GetUtcNow();
+        var startAt = BookingRules.ResolveStartAt(r.StartAt, r.IsAsap, now);
+        var end = BookingRules.EnsureValidInterval(startAt, r.DurationMinutes, now);
         await using var tx = await db.Database.BeginTransactionAsync(IsSqlServer() ? IsolationLevel.ReadCommitted : IsolationLevel.Serializable, ct);
         var worker = await db.Workers.Include(x => x.Offerings).ThenInclude(x => x.Modes).Include(x => x.Availability).Include(x => x.Exceptions).SingleOrDefaultAsync(x => x.Id == r.WorkerId, ct) ?? throw new KeyNotFoundException("Worker not found.");
         if (worker.VerificationStatus == VerificationStatus.Suspended || await db.Users.AnyAsync(x => x.Id == worker.UserId && x.IsSuspended, ct)) throw new InvalidOperationException("Worker is unavailable.");
@@ -62,7 +63,7 @@ public sealed class MarketplaceService(AppDbContext db, ISimulatedPaymentLedger 
         if (!category.IsActive || !category.Modes.Any(x => x.Mode == r.Mode)) throw new InvalidOperationException("Category is inactive or does not support this mode.");
         if (category.RequiresVerification && worker.VerificationStatus != VerificationStatus.Verified) throw new InvalidOperationException("This service requires a verified worker.");
         var offering = worker.Offerings.SingleOrDefault(x => x.CategoryId == r.CategoryId && x.Modes.Any(m => m.Mode == r.Mode)) ?? throw new InvalidOperationException("Worker does not offer this service and mode.");
-        if (!(r.IsAsap && worker.AvailableNow) && !WorkerMatching.IsAvailableAt(worker, startAt.ToUniversalTime(), end)) throw new InvalidOperationException("Worker is not available for the requested time.");
+        if (!WorkerMatching.IsAvailableAt(worker, startAt, end)) throw new InvalidOperationException("Worker is not available for the requested time.");
         var origin = await db.Localities.SingleOrDefaultAsync(x => x.Name == r.Locality, ct); var destination = await db.Localities.SingleOrDefaultAsync(x => x.Name == worker.Locality, ct);
         if (origin is null || destination is null) throw new InvalidOperationException("A supported locality is required.");
         var distance = WorkerMatching.DistanceKm(origin.Location.Y, origin.Location.X, destination.Location.Y, destination.Location.X);
@@ -147,13 +148,13 @@ public sealed class MarketplaceService(AppDbContext db, ISimulatedPaymentLedger 
     private async Task SaveTransition(Booking b, BookingStatus to, CancellationToken ct) { b.Status = to; AddHistory(b, to); try { await db.SaveChangesAsync(ct); } catch (DbUpdateConcurrencyException ex) { throw new BookingConcurrencyException("Booking changed while this action was being saved. Reload and retry.", ex); } }
     private async Task EnsureBookingStillValidAsync(Booking b, CancellationToken ct)
     {
-        if (b.StartAt <= DateTimeOffset.UtcNow) throw new InvalidOperationException("Booking start time has passed.");
+        if (b.StartAt <= clock.GetUtcNow()) throw new InvalidOperationException("Booking start time has passed.");
         if (await db.Users.AnyAsync(x => x.Id == b.CustomerId && x.IsSuspended, ct)) throw new UnauthorizedAccessException("Customer account is suspended.");
         var worker = await db.Workers.Include(x => x.Availability).Include(x => x.Exceptions).SingleOrDefaultAsync(x => x.Id == b.WorkerId, ct) ?? throw new KeyNotFoundException("Worker not found.");
         if (worker.VerificationStatus == VerificationStatus.Suspended || await db.Users.AnyAsync(x => x.Id == worker.UserId && x.IsSuspended, ct)) throw new InvalidOperationException("Worker is unavailable.");
         var category = await db.Categories.Include(x => x.Modes).SingleOrDefaultAsync(x => x.Id == b.CategoryId, ct) ?? throw new KeyNotFoundException("Category not found.");
         if (!category.IsActive || !category.Modes.Any(x => x.Mode == b.Mode) || (category.RequiresVerification && worker.VerificationStatus != VerificationStatus.Verified)) throw new InvalidOperationException("Category or worker is no longer eligible.");
-        if (!(b.StartAt <= DateTimeOffset.UtcNow.AddMinutes(15) && worker.AvailableNow) && !WorkerMatching.IsAvailableAt(worker, b.StartAt, b.EndAt)) throw new InvalidOperationException("Worker is no longer available for that time.");
+        if (!WorkerMatching.IsAvailableAt(worker, b.StartAt, b.EndAt)) throw new InvalidOperationException("Worker is no longer available for that time.");
         var origin = await db.Localities.SingleOrDefaultAsync(x => x.Name == b.Locality, ct); var destination = await db.Localities.SingleOrDefaultAsync(x => x.Name == worker.Locality, ct);
         if (origin is null || destination is null || WorkerMatching.DistanceKm(origin.Location.Y, origin.Location.X, destination.Location.Y, destination.Location.X) > worker.RadiusKm) throw new InvalidOperationException("Worker no longer serves this locality.");
     }

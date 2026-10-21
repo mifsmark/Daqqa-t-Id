@@ -19,6 +19,10 @@ on:
         description: 'SHA-256 of the efbundle in that CI run, shown in its run summary'
         type: string
         required: true
+      isolated_demo_smoke:
+        description: 'Run the booking lifecycle against the isolated fictional Staging demo'
+        type: boolean
+        default: true
 permissions:
   contents: read
   id-token: write
@@ -46,9 +50,13 @@ jobs:
           APP_NAME: ${{ vars.AZURE_WEBAPP_NAME }}
           RG_NAME: ${{ vars.AZURE_RESOURCE_GROUP }}
           SQL_SERVER: ${{ vars.AZURE_SQL_SERVER_NAME }}
+          RUN_DEMO_SMOKE: ${{ inputs.isolated_demo_smoke }}
+          SMOKE_EMAIL: ${{ secrets.STAGING_ADMIN_EMAIL }}
+          SMOKE_PASSWORD: ${{ secrets.STAGING_ADMIN_PASSWORD }}
         run: |
           missing=0
           if [ "$MIGRATIONS_REVIEWED" != "true" ]; then echo '::error::Dispatch must explicitly confirm reviewed_migrations=true.'; missing=1; fi
+          if [ "$RUN_DEMO_SMOKE" = "true" ] && { [ -z "$SMOKE_EMAIL" ] || [ -z "$SMOKE_PASSWORD" ]; }; then echo '::error::Isolated demo smoke requires protected STAGING_ADMIN_EMAIL and STAGING_ADMIN_PASSWORD secrets.'; missing=1; fi
           for key in CI_RUN_ID DB_CONNECTION MIGRATION_ID MIGRATION_SHA256 CLIENT_ID TENANT_ID SUBSCRIPTION_ID APP_NAME RG_NAME SQL_SERVER; do
             if [ -z "${!key}" ]; then echo "::error::Missing required configuration: $key"; missing=1; fi
           done
@@ -123,3 +131,21 @@ jobs:
           curl --fail --retry 10 --retry-delay 6 "$URL/health/live"
           curl --fail --retry 10 --retry-delay 6 "$URL/health/ready"
           curl --fail "$URL/"
+      - uses: actions/setup-node@v4
+        if: ${{ inputs.isolated_demo_smoke }}
+        with:
+          node-version: 22
+      - name: Install isolated demo smoke dependencies
+        if: ${{ inputs.isolated_demo_smoke }}
+        run: npm ci --prefix tests/e2e
+      - name: Verify Azure SQL-backed booking lifecycle
+        if: ${{ inputs.isolated_demo_smoke }}
+        env:
+          STAGING_SMOKE_URL: https://${{ vars.AZURE_WEBAPP_NAME }}.azurewebsites.net
+          STAGING_ADMIN_EMAIL: ${{ secrets.STAGING_ADMIN_EMAIL }}
+          STAGING_ADMIN_PASSWORD: ${{ secrets.STAGING_ADMIN_PASSWORD }}
+        run: npm run smoke:staging --prefix tests/e2e
+      - name: Report staging URL
+        env:
+          URL: https://${{ vars.AZURE_WEBAPP_NAME }}.azurewebsites.net
+        run: echo "Verified deployment URL $URL" >> "$GITHUB_STEP_SUMMARY"

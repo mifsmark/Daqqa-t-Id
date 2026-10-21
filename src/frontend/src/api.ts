@@ -9,6 +9,7 @@ export type Session = {
   user: User | null;
   csrfToken: string;
   demoEnabled: boolean;
+  stagingDemoEnabled?: boolean;
 };
 export type Category = {
   id: string;

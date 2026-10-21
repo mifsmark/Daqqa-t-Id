@@ -12,6 +12,8 @@ param webAppName string
 @description('Globally unique SQL logical server name; lowercase letters and digits only.')
 param sqlServerName string
 param sqlDatabaseName string = 'daqqatid'
+@description('Enable only for a separate fictional demo database ending in _staging_demo; never use with real user data.')
+param isolatedStagingDemo bool = false
 @description('App Service plan SKU. Free/shared plans are not suitable for production.')
 param appServiceSkuName string = 'B1'
 param appServiceSkuTier string = 'Basic'
@@ -56,7 +58,9 @@ resource app 'Microsoft.Web/sites@2023-12-01' = {
       http20Enabled: true
       healthCheckPath: '/health/ready'
       appSettings: [
-        { name: 'ASPNETCORE_ENVIRONMENT', value: 'Production' }
+        { name: 'ASPNETCORE_ENVIRONMENT', value: isolatedStagingDemo ? 'Staging' : 'Production' }
+        { name: 'StagingDemo__Enabled', value: isolatedStagingDemo ? 'true' : 'false' }
+        { name: 'StagingDemo__DatabaseName', value: isolatedStagingDemo ? sqlDatabaseName : '' }
         { name: 'ASPNETCORE_FORWARDEDHEADERS_ENABLED', value: 'true' }
         { name: 'WEBSITE_RUN_FROM_PACKAGE', value: '1' }
         { name: 'PublicOrigin', value: 'https://${webAppName}.azurewebsites.net' }

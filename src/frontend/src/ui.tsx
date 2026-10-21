@@ -156,17 +156,19 @@ function Shell({
   children,
   user,
   demoEnabled,
+  stagingDemoEnabled,
 }: {
   children: React.ReactNode;
   user: User | null;
   demoEnabled: boolean;
+  stagingDemoEnabled: boolean;
 }) {
   return (
     <>
       <Header user={user} />
-      {demoEnabled && (
+      {(demoEnabled || stagingDemoEnabled) && (
         <aside className="demo-banner" role="status">
-          <strong>Development demo mode</strong>
+          <strong>{stagingDemoEnabled ? "Fictional staging demo" : "Development demo mode"}</strong>
           <span>
             Profiles and bookings are test records. Payments are simulated.
           </span>
@@ -1074,6 +1076,7 @@ function BookingForm() {
     params.get("workerId") || "",
   );
   const [duration, setDuration] = useState(60);
+  const [isAsap, setIsAsap] = useState(false);
   const [startAt, setStartAt] = useState(() =>
     maltaLocalDateTimeValue(new Date(Date.now() + 86400000)),
   );
@@ -1096,8 +1099,8 @@ function BookingForm() {
           workerId: chosenWorker,
           categoryId: String(d.categoryId),
           durationMinutes: duration,
-          startAt: maltaLocalDateTimeToUtc(startAt),
-          isAsap: d.isAsap === "on",
+          startAt: isAsap ? new Date().toISOString() : maltaLocalDateTimeToUtc(startAt),
+          isAsap,
           idempotencyKey: crypto.randomUUID(),
         }),
       );
@@ -1198,12 +1201,13 @@ function BookingForm() {
             type="datetime-local"
             name="startAt"
             value={startAt}
+            disabled={isAsap}
             min={maltaLocalDateTimeValue(new Date())}
             onChange={(e) => setStartAt(e.target.value)}
           />
         </label>
         <small className="help-text">
-          Times are shown in Malta local time.
+          {isAsap ? "ASAP uses the next few minutes, within the helper’s working hours and time off." : "Times are shown in Malta local time."}
         </small>
         <label>
           Estimated time
@@ -1245,7 +1249,7 @@ function BookingForm() {
           </div>
         )}
         <label className="check-filter">
-          <input type="checkbox" name="isAsap" /> I need help as soon as
+          <input type="checkbox" name="isAsap" checked={isAsap} onChange={(e) => setIsAsap(e.target.checked)} /> I need help as soon as
           possible
         </label>
         {error && (
@@ -2769,7 +2773,7 @@ export default function App() {
     setCsrf(s?.csrfToken || "");
   }, [s?.csrfToken]);
   return (
-    <Shell user={s?.user || null} demoEnabled={!!s?.demoEnabled}>
+    <Shell user={s?.user || null} demoEnabled={!!s?.demoEnabled} stagingDemoEnabled={!!s?.stagingDemoEnabled}>
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/services" element={<Services />} />

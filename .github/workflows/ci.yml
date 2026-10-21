@@ -24,6 +24,7 @@ jobs:
     env:
       TEST_SQL_CONNECTION: "Server=localhost,1433;Database=DaqqaTid_CI;User Id=sa;Password=Local_CI_only_Change9!;Encrypt=False;TrustServerCertificate=True"
       E2E_SQL_CONNECTION: "Server=localhost,1433;Database=DaqqaTid_E2E;User Id=sa;Password=Local_CI_only_Change9!;Encrypt=False;TrustServerCertificate=True"
+      STAGING_SQL_CONNECTION: "Server=localhost,1433;Database=DaqqaTid_CI_staging_demo;User Id=sa;Password=Local_CI_only_Change9!;Encrypt=False;TrustServerCertificate=True"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4
@@ -89,6 +90,39 @@ jobs:
       - name: Run Playwright tests
         run: npx playwright test
         working-directory: tests/e2e
+      - name: Apply migrations for isolated Staging smoke
+        env:
+          ConnectionStrings__DefaultConnection: ${{ env.STAGING_SQL_CONNECTION }}
+        run: dotnet ef database update --project src/backend/DaqqaTid.Infrastructure --startup-project src/backend/DaqqaTid.Api --configuration Release --no-build
+      - name: Start isolated HTTPS Staging demo
+        env:
+          ASPNETCORE_ENVIRONMENT: Staging
+          ASPNETCORE_URLS: https://localhost:5110
+          ConnectionStrings__DefaultConnection: ${{ env.STAGING_SQL_CONNECTION }}
+          Database__SeedReferenceDataOnStartup: "true"
+          StagingDemo__Enabled: "true"
+          StagingDemo__DatabaseName: DaqqaTid_CI_staging_demo
+          PublicOrigin: https://localhost:5110
+          BootstrapAdmin__Email: ci-smoke-admin@staging.demo.invalid
+        run: |
+          smoke_password="$(openssl rand -hex 32)Aa1!"
+          echo "::add-mask::$smoke_password"
+          echo "STAGING_ADMIN_PASSWORD=$smoke_password" >> "$GITHUB_ENV"
+          openssl req -x509 -newkey rsa:2048 -nodes -keyout "$RUNNER_TEMP/staging-smoke.key" -out "$RUNNER_TEMP/staging-smoke.crt" -subj '/CN=localhost' -addext 'subjectAltName=DNS:localhost' -days 1 > /dev/null 2>&1
+          openssl pkcs12 -export -out "$RUNNER_TEMP/staging-smoke.pfx" -inkey "$RUNNER_TEMP/staging-smoke.key" -in "$RUNNER_TEMP/staging-smoke.crt" -passout pass:
+          ASPNETCORE_Kestrel__Certificates__Default__Path="$RUNNER_TEMP/staging-smoke.pfx" BootstrapAdmin__Password="$smoke_password" dotnet run --project src/backend/DaqqaTid.Api --configuration Release --no-build > /tmp/daqqatid-staging-smoke.log 2>&1 &
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent --cacert "$RUNNER_TEMP/staging-smoke.crt" https://localhost:5110/health/ready; then exit 0; fi
+            sleep 2
+          done
+          echo '::error::Local HTTPS staging demo did not become ready.'
+          exit 1
+      - name: Verify isolated Staging lifecycle over HTTPS and SQL
+        env:
+          STAGING_SMOKE_URL: https://localhost:5110
+          STAGING_ADMIN_EMAIL: ci-smoke-admin@staging.demo.invalid
+          NODE_EXTRA_CA_CERTS: ${{ runner.temp }}/staging-smoke.crt
+        run: npm run smoke:staging --prefix tests/e2e
       - name: Publish API
         run: dotnet publish src/backend/DaqqaTid.Api/DaqqaTid.Api.csproj --configuration Release --no-restore --output publish/app
       - name: Build reviewed migration bundle and SQL script

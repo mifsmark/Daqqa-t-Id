@@ -7,29 +7,34 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Data.SqlClient;
 using Xunit;
 
 [assembly: CollectionBehavior(DisableTestParallelization = true)]
 
 namespace DaqqaTid.IntegrationTests;
 
-public sealed class SqlApiFactory : WebApplicationFactory<Program>
+public sealed class SqlApiFactory(TimeProvider? clock = null, string environment = "Testing", bool stagingDemo = false) : WebApplicationFactory<Program>
 {
-    private readonly string connection = Environment.GetEnvironmentVariable("TEST_SQL_CONNECTION")
-        ?? throw new InvalidOperationException("TEST_SQL_CONNECTION is required. Point it to a dedicated SQL Server test database.");
+    private readonly string connection = Connection(stagingDemo);
     private readonly string mediaDirectory = Path.Combine(Path.GetTempPath(), "daqqa-sql-media-" + Guid.NewGuid().ToString("N"));
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         // Avoid appsettings.Development.json's LocalDB and bootstrap defaults. Test data is
         // initialized explicitly against TEST_SQL_CONNECTION in InitializeDatabaseAsync.
-        builder.UseEnvironment("Testing");
+        builder.UseEnvironment(environment);
         builder.UseSetting("ConnectionStrings:DefaultConnection", connection);
+        builder.UseSetting("StagingDemo:Enabled", stagingDemo.ToString());
+        builder.UseSetting("StagingDemo:DatabaseName", new SqlConnectionStringBuilder(connection).InitialCatalog);
+        if (clock is not null) builder.ConfigureServices(services => services.AddSingleton(clock));
         builder.ConfigureAppConfiguration((_, configuration) => configuration.AddInMemoryCollection(
             new Dictionary<string, string?>
             {
                 ["ConnectionStrings:DefaultConnection"] = connection,
                 ["Demo:Enabled"] = "false",
+                ["StagingDemo:Enabled"] = stagingDemo.ToString(),
+                ["StagingDemo:DatabaseName"] = new SqlConnectionStringBuilder(connection).InitialCatalog,
                 ["Database:SeedReferenceDataOnStartup"] = "false",
                 ["BootstrapAdmin:Email"] = "",
                 ["BootstrapAdmin:Password"] = "",
@@ -47,11 +52,22 @@ public sealed class SqlApiFactory : WebApplicationFactory<Program>
     {
         using var scope = Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-        await db.Database.EnsureCreatedAsync();
+        if (stagingDemo) await db.Database.MigrateAsync();
+        else await db.Database.EnsureCreatedAsync();
         await DatabaseSeeder.SeedReferenceDataAsync(db);
         var roles = scope.ServiceProvider.GetRequiredService<Microsoft.AspNetCore.Identity.RoleManager<Microsoft.AspNetCore.Identity.IdentityRole<Guid>>>();
         foreach (var role in new[] { "Customer", "Worker", "Admin" })
             if (!await roles.RoleExistsAsync(role)) await roles.CreateAsync(new(role));
+    }
+
+    private static string Connection(bool stagingDemo)
+    {
+        var value = Environment.GetEnvironmentVariable("TEST_SQL_CONNECTION")
+            ?? throw new InvalidOperationException("TEST_SQL_CONNECTION is required. Point it to a dedicated SQL Server test database.");
+        if (!stagingDemo) return value;
+        var builder = new SqlConnectionStringBuilder(value);
+        builder.InitialCatalog += "_staging_demo";
+        return builder.ConnectionString;
     }
 }
 

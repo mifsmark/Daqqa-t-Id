@@ -17,11 +17,12 @@ public static partial class SeoEndpoints
                 context.Response.Headers["X-Robots-Tag"] = "noindex, nofollow";
             await next();
         });
-        app.MapGet("/robots.txt", (IConfiguration config) => Results.Text(
+        app.MapGet("/robots.txt", (IConfiguration config) => Results.Text(config.GetValue<bool>("StagingDemo:Enabled") ? "User-agent: *\nDisallow: /\n" :
             "User-agent: *\nAllow: /\nDisallow: /api/\nDisallow: /admin\nDisallow: /account\nDisallow: /dashboard\nDisallow: /worker$\nDisallow: /bookings/\nDisallow: /find\n" +
             (Origin(config) is { } origin ? $"Sitemap: {origin}/sitemap.xml\n" : ""), "text/plain"));
         app.MapGet("/sitemap.xml", async (AppDbContext db, IConfiguration config, CancellationToken ct) =>
         {
+            if (config.GetValue<bool>("StagingDemo:Enabled")) return Results.NotFound();
             var origin = Origin(config);
             if (origin is null) return Results.Problem("PublicOrigin must be configured before publishing the sitemap.", statusCode: 503);
             var workers = db.Workers.Where(w => !w.IsDemo && w.VerificationStatus != VerificationStatus.Suspended && db.Users.Any(u => u.Id == w.UserId && !u.IsSuspended));
@@ -37,7 +38,7 @@ public static partial class SeoEndpoints
             var category = await db.Categories.AsNoTracking().Include(c => c.Modes).SingleOrDefaultAsync(c => c.Slug == slug && c.IsActive, ct);
             if (category is null) return Results.NotFound();
             var hasProvider = await db.Offerings.AnyAsync(o => o.CategoryId == category.Id && db.Workers.Any(w => w.Id == o.WorkerId && !w.IsDemo && w.VerificationStatus != VerificationStatus.Suspended && (!category.RequiresVerification || w.VerificationStatus == VerificationStatus.Verified) && db.Users.Any(u => u.Id == w.UserId && !u.IsSuspended)), ct);
-            if (!hasProvider) context.Response.Headers["X-Robots-Tag"] = "noindex, follow";
+            if (!hasProvider && !cfg.GetValue<bool>("StagingDemo:Enabled")) context.Response.Headers["X-Robots-Tag"] = "noindex, follow";
             var description = category.Description + " Find local help in Malta and Gozo. Compare service options and request a clear price before confirming.";
             var body = $"<main><h1>{E(category.Name)} in Malta and Gozo</h1><p>{E(description)}</p>" +
                 (category.RequiresVerification ? "<p>This service requires an approved professional. Customer participation and lessons are restricted to eligible activities.</p>" : "<p>Choose professional help, work together, or learn a practical skill where this service supports it.</p>") +
@@ -45,11 +46,12 @@ public static partial class SeoEndpoints
             return await Html(env, cfg, category.Name + " in Malta & Gozo | Daqqa t’Id", description, "/services/" + Uri.EscapeDataString(category.Slug), body,
                 new Dictionary<string, object?> { ["@context"] = "https://schema.org", ["@type"] = "Service", ["name"] = category.Name, ["description"] = category.Description, ["areaServed"] = new[] { "Malta", "Gozo" }, ["provider"] = new { name = "Daqqa t’Id", url = Origin(cfg) } }, ct);
         });
-        app.MapGet("/workers/{id:guid}", async (Guid id, AppDbContext db, IWebHostEnvironment env, IConfiguration cfg, CancellationToken ct) =>
+        app.MapGet("/workers/{id:guid}", async (Guid id, HttpContext context, AppDbContext db, IWebHostEnvironment env, IConfiguration cfg, CancellationToken ct) =>
         {
             var worker = await db.Workers.AsNoTracking().SingleOrDefaultAsync(w => w.Id == id && w.VerificationStatus != DaqqaTid.Domain.VerificationStatus.Suspended &&
                 db.Users.Any(u => u.Id == w.UserId && !u.IsSuspended), ct);
             if (worker is null) return Results.NotFound();
+            if (worker.IsDemo) context.Response.Headers["X-Robots-Tag"] = "noindex, nofollow";
             var description = $"{worker.DisplayName}, local service worker in {worker.Locality}. " + worker.Bio;
             if (description.Length > 280) description = description[..277] + "…";
             var body = $"<main><h1>{E(worker.DisplayName)}</h1><p>Based in {E(worker.Locality)}, Malta and Gozo.</p><p>{E(worker.Bio)}</p>" +

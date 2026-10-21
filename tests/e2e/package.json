@@ -4,6 +4,7 @@
   "type": "module",
   "scripts": {
     "test": "playwright test",
+    "smoke:staging": "node staging-smoke.mjs",
     "check": "tsc --noEmit && playwright test --list"
   },
   "devDependencies": {

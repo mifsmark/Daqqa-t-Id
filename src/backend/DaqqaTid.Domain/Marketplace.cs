@@ -81,8 +81,14 @@ public static class BookingRules
     };
     public static bool CanTransition(BookingStatus from, BookingStatus to) => Transitions[from].Contains(to);
     public static void EnsureTransition(BookingStatus from, BookingStatus to) { if (!CanTransition(from, to)) throw new InvalidOperationException($"Cannot move a booking from {from} to {to}."); }
-    public static DateTimeOffset EnsureValidInterval(DateTimeOffset start, int durationMinutes)
-    { if (start.Offset != TimeSpan.Zero) start = start.ToUniversalTime(); if (durationMinutes is < 15 or > 720) throw new ArgumentOutOfRangeException(nameof(durationMinutes)); if (start <= DateTimeOffset.UtcNow.AddMinutes(-5)) throw new ArgumentException("Booking must start in the future."); return start.AddMinutes(durationMinutes); }
+    public static DateTimeOffset ResolveStartAt(DateTimeOffset requested, bool isAsap, DateTimeOffset now)
+    {
+        if (!isAsap) return requested.ToUniversalTime();
+        if (requested > now.AddMinutes(15)) throw new ArgumentException("ASAP requests cannot specify a future scheduled time. Choose a scheduled request instead.");
+        return now.ToUniversalTime().AddMinutes(5);
+    }
+    public static DateTimeOffset EnsureValidInterval(DateTimeOffset start, int durationMinutes, DateTimeOffset? now = null)
+    { if (start.Offset != TimeSpan.Zero) start = start.ToUniversalTime(); if (durationMinutes is < 15 or > 720) throw new ArgumentOutOfRangeException(nameof(durationMinutes)); if (start <= (now ?? DateTimeOffset.UtcNow).AddMinutes(-5)) throw new ArgumentException("Booking must start in the future."); return start.AddMinutes(durationMinutes); }
     public static bool Overlaps(DateTimeOffset aStart, DateTimeOffset aEnd, DateTimeOffset bStart, DateTimeOffset bEnd) => aStart < bEnd && bStart < aEnd;
     public static decimal? Price(PricingType type, decimal? rate, int durationMinutes, decimal? fixedPrice = null) => type switch
     { PricingType.Hourly when rate is not null => decimal.Round(rate.Value * durationMinutes / 60m, 2, MidpointRounding.AwayFromZero), PricingType.Fixed => fixedPrice ?? rate, _ => null };

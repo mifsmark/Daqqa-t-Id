@@ -2,6 +2,8 @@
 
 This repository is prepared for a single App Service serving the React build and ASP.NET Core API from one origin. Azure provisioning and deployment are manual and require an owner with access to the Azure subscription and GitHub repository. No Azure resources are created by CI. Do not add secrets to source files, PRs, issues, or logs.
 
+For a working fictional staging journey, follow [STAGING-DEMO.md](STAGING-DEMO.md), including the explicit environment/database isolation and authenticated post-deployment booking smoke. Use a separate personal subscription; never use Kingmakers work resources. The default template below is billable and is not authorized by a free-only hosting request.
+
 ## Prerequisites and permissions
 
 Use Azure CLI with Bicep support, .NET 10 SDK, GitHub Actions enabled, and a repository environment named `staging`. The operator needs permission to create resource groups/resources and role assignments in the subscription (typically Contributor plus User Access Administrator or Owner); the deployment service principal needs App Service deployment rights, access to the target subscription, and OIDC federation. A GitHub environment reviewer should approve deployments. Configure a Microsoft Entra administrator for SQL.
@@ -88,7 +90,7 @@ Never use `EnsureDeleted`, automatic startup migration, or destructive migration
 
 ## Deploy and verify
 
-After a successful CI run, open Actions → Deploy staging → Run workflow. Enter the CI run ID, the migration ID and bundle SHA-256 from the CI summary, and set `reviewed_migrations` to true after inspecting the artifact SQL script. The `staging` environment approval gate must pass. The workflow validates the successful CI run and exact commit, downloads and verifies the same reviewed bundle, applies it, deploys the matching CI app artifact, and requests `/health/live`, `/health/ready`, and `/`.
+After a successful CI run, open Actions → Deploy staging → Run workflow. Enter the CI run ID, the migration ID and bundle SHA-256 from the CI summary, and set `reviewed_migrations` to true after inspecting the artifact SQL script. The `staging` environment approval gate must pass. The workflow validates the successful CI run and exact commit, downloads and verifies the same reviewed bundle, applies it, deploys the matching CI app artifact, and requests `/health/live`, `/health/ready`, and `/`. With the default `isolated_demo_smoke=true`, it also requires protected staging admin credentials and runs the real API booking lifecycle in STAGING-DEMO.md; a normal Production configuration cannot pass that demo smoke.
 
 Open the URL printed by the workflow (or `https://<WEBAPP>.azurewebsites.net`). Confirm the landing page, same-origin API, and a real read path backed by Azure SQL. Do not claim a live deployment until the health and smoke checks pass. The App Service is configured to store uploads in its private Blob container through managed identity; password reset remains unavailable until a mail provider is configured.
 

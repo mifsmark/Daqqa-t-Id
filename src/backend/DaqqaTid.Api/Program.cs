@@ -18,6 +18,7 @@ var connection = builder.Configuration.GetConnectionString("DefaultConnection")
     ?? Environment.GetEnvironmentVariable("DAQQATID_SQL_CONNECTION")
     ?? (builder.Environment.IsDevelopment() ? "Server=(localdb)\\mssqllocaldb;Database=DaqqaTid;Trusted_Connection=True;MultipleActiveResultSets=true;TrustServerCertificate=True" : null)
     ?? throw new InvalidOperationException("Configure ConnectionStrings:DefaultConnection or DAQQATID_SQL_CONNECTION.");
+var stagingDemo = StagingDemoEndpoints.ValidateConfiguration(builder.Environment, builder.Configuration, connection);
 builder.Services.AddDbContext<AppDbContext>(o => o.UseSqlServer(connection, sql => sql.UseNetTopologySuite()));
 builder.Services.Configure<ForwardedHeadersOptions>(o =>
 {
@@ -51,6 +52,7 @@ builder.Services.AddAntiforgery(o =>
 });
 builder.Services.AddScoped<IMarketplaceService, MarketplaceService>();
 builder.Services.AddScoped<ISimulatedPaymentLedger, SimulatedPaymentLedger>();
+builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddRateLimiter(o =>
 {
     o.RejectionStatusCode = 429;
@@ -73,6 +75,7 @@ app.Use(async (context, next) =>
         context.Response.Headers["X-Content-Type-Options"] = "nosniff";
         context.Response.Headers["X-Frame-Options"] = "DENY";
         context.Response.Headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
+        if (stagingDemo) context.Response.Headers["X-Robots-Tag"] = "noindex, nofollow";
         if (context.Request.Path.StartsWithSegments("/api")) context.Response.Headers.CacheControl = "no-store";
         if (!app.Environment.IsDevelopment()) context.Response.Headers.ContentSecurityPolicy = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'; worker-src 'self'; manifest-src 'self'";
         return Task.CompletedTask;
@@ -155,7 +158,7 @@ api.MapGet("/session", async (HttpContext ctx, IConfiguration cfg, UserManager<A
         if (current is null || current.IsSuspended) await signIn.SignOutAsync();
         else user = new SessionUser(current.Id, current.Email ?? "", current.DisplayName, (await users.GetRolesAsync(current)).FirstOrDefault() ?? "");
     }
-    return Results.Ok(new { user, csrfToken = token, demoEnabled = cfg.GetValue<bool>("Demo:Enabled") && ctx.RequestServices.GetRequiredService<IWebHostEnvironment>().IsDevelopment() });
+    return Results.Ok(new { user, csrfToken = token, demoEnabled = cfg.GetValue<bool>("Demo:Enabled") && ctx.RequestServices.GetRequiredService<IWebHostEnvironment>().IsDevelopment(), stagingDemoEnabled = stagingDemo });
 });
 
 var auth = api.MapGroup("/auth").RequireRateLimiting("auth");
@@ -204,7 +207,7 @@ auth.MapPost("/demo", async (DemoRequest req, IConfiguration cfg, IWebHostEnviro
 
 api.MapGet("/catalog", async (AppDbContext db, CancellationToken ct) => await db.Categories.Where(x => x.IsActive).Include(x => x.Modes).OrderBy(x => x.Name).Select(x => new { x.Id, x.Slug, x.Name, x.Description, x.Icon, modes = x.Modes.Select(m => m.Mode), x.RequiresVerification, x.IsActive }).ToListAsync(ct));
 api.MapGet("/localities", async (AppDbContext db, CancellationToken ct) => await db.Localities.AsNoTracking().OrderBy(x => x.Name).Select(x => new { name = x.Name, latitude = x.Location.Y, longitude = x.Location.X }).ToListAsync(ct));
-api.MapGet("/workers", async (AppDbContext db, string? categoryId, string? mode, string? locality, bool? availableNow, decimal? maxPrice, string? startAt, int? durationMinutes, CancellationToken ct) =>
+api.MapGet("/workers", async (AppDbContext db, TimeProvider clock, string? categoryId, string? mode, string? locality, bool? availableNow, decimal? maxPrice, string? startAt, int? durationMinutes, CancellationToken ct) =>
 {
     var q = db.Workers.AsNoTracking().Include(x => x.Offerings).ThenInclude(x => x.Modes).Include(x => x.Offerings).ThenInclude(x => x.Category).Include(x => x.Reviews).Where(x => x.VerificationStatus != VerificationStatus.Suspended);
     var hasCategory = Guid.TryParse(categoryId, out var cid);
@@ -223,9 +226,12 @@ api.MapGet("/workers", async (AppDbContext db, string? categoryId, string? mode,
         if (category is null || !category.IsActive) return Array.Empty<object>();
         if (category.RequiresVerification) rows = rows.Where(x => x.VerificationStatus == VerificationStatus.Verified).ToList();
     }
-    if (DateTimeOffset.TryParse(startAt, out var start) && durationMinutes is > 0 and <= 720)
+    if (availableNow == true || !string.IsNullOrWhiteSpace(startAt))
     {
-        var startUtc = start.ToUniversalTime(); var endUtc = startUtc.AddMinutes(durationMinutes.Value);
+        var now = clock.GetUtcNow();
+        var start = string.IsNullOrWhiteSpace(startAt) ? now : DateTimeOffset.TryParse(startAt, out var parsed) ? parsed : throw new ArgumentException("Invalid start time.");
+        var startUtc = BookingRules.ResolveStartAt(start, availableNow == true, now);
+        var endUtc = BookingRules.EnsureValidInterval(startUtc, durationMinutes ?? 60, now);
         rows = rows.Where(x => WorkerMatching.IsAvailableAt(x, startUtc, endUtc)).ToList();
         var busy = await db.Bookings.Where(b => (b.Status == BookingStatus.WorkerAccepted || b.Status == BookingStatus.Confirmed || b.Status == BookingStatus.InProgress) && b.StartAt < endUtc && startUtc < b.EndAt).Select(b => b.WorkerId).Distinct().ToListAsync(ct);
         rows = rows.Where(x => !busy.Contains(x.Id)).ToList();
@@ -302,9 +308,24 @@ api.MapPut("/worker/availability", async (AvailabilityInput r, ClaimsPrincipal p
     db.AvailabilityWindows.AddRange(r.Windows.Select(x => new AvailabilityWindow { WorkerId = w.Id, DayOfWeek = (DayOfWeek)x.DayOfWeek, StartTime = TimeOnly.Parse(x.StartTime), EndTime = TimeOnly.Parse(x.EndTime) }));
     db.AvailabilityExceptions.AddRange(r.Exceptions.Select(x => new AvailabilityException { WorkerId = w.Id, Date = DateOnly.Parse(x.Date), IsAvailable = x.IsAvailable })); await db.SaveChangesAsync(ct); await transaction.CommitAsync(ct); return Results.Ok(new { w.AvailableNow, w.AvailabilityUpdatedAt, windows = r.Windows, exceptions = r.Exceptions });
 }).RequireAuthorization();
-api.MapPost("/worker/verification", async (VerificationInput r, ClaimsPrincipal p, AppDbContext db, CancellationToken ct) => { if (Role(p) != RoleNames.Worker) return Results.Forbid(); if (string.IsNullOrWhiteSpace(r.Reference) || r.Reference.Length > 200 || r.Notes.Length > 2000) return Results.BadRequest(new { title = "Invalid verification submission", status = 400 }); var uid = UserId(p); var w = await db.Workers.SingleOrDefaultAsync(x => x.UserId == uid, ct); if (w is null) return Results.NotFound(); w.VerificationReference = r.Reference.Trim(); w.VerificationNotes = r.Notes.Trim(); w.VerificationStatus = VerificationStatus.Pending; await db.SaveChangesAsync(ct); return Results.Ok(new { w.VerificationStatus }); }).RequireAuthorization();
+api.MapPost("/worker/verification", async (VerificationInput r, ClaimsPrincipal p, AppDbContext db, CancellationToken ct) =>
+{
+    if (Role(p) != RoleNames.Worker) return Results.Forbid();
+    var uid = UserId(p);
+    var w = await db.Workers.SingleOrDefaultAsync(x => x.UserId == uid, ct);
+    if (w is null) return Results.NotFound();
+    if (w.VerificationStatus == VerificationStatus.Suspended) return Results.Forbid();
+    w.VerificationReference = r.Reference.Trim(); w.VerificationNotes = r.Notes.Trim();
+    // Updated material does not revoke an existing approval; only an administrator
+    // may reject or suspend it. RowVersion prevents overwriting a concurrent decision.
+    if (w.VerificationStatus != VerificationStatus.Verified) w.VerificationStatus = VerificationStatus.Pending;
+    db.AuditEntries.Add(new AuditEntry { ActorId = uid, Action = "worker.verification.submitted", Details = w.Id.ToString(), CreatedAt = DateTimeOffset.UtcNow });
+    await db.SaveChangesAsync(ct);
+    return Results.Ok(new { w.VerificationStatus });
+}).RequireAuthorization();
 
 var admin = api.MapGroup("/admin").RequireAuthorization(policy => policy.RequireRole(RoleNames.Admin));
+if (stagingDemo) admin.MapStagingDemo();
 admin.MapGet("/workers", async (AppDbContext db, CancellationToken ct) => (await db.Workers.AsNoTracking().Include(x => x.Offerings).ThenInclude(x => x.Modes).Include(x => x.Reviews).ToListAsync(ct)).Select(x => new { id = x.Id, userId = x.UserId, displayName = x.DisplayName, bio = x.Bio, locality = x.Locality, yearsExperience = x.YearsExperience, verificationStatus = x.VerificationStatus, availableNow = x.AvailableNow, availabilityUpdatedAt = x.AvailabilityUpdatedAt, isDemo = x.IsDemo, hourlyRate = x.HourlyRate, pricingType = x.PricingType, categoryIds = x.Offerings.Select(o => o.CategoryId.ToString()), modes = x.Offerings.SelectMany(o => o.Modes).Select(m => m.Mode).Distinct(), reviewCount = x.Reviews.Count, averageRating = x.Reviews.Count == 0 ? (double?)null : x.Reviews.Average(r => (double)r.Rating), verificationReference = x.VerificationReference, verificationNotes = x.VerificationNotes }));
 admin.MapPost("/workers/{id:guid}/verification", async (Guid id, AdminVerification r, ClaimsPrincipal p, AppDbContext db, CancellationToken ct) => { if (Role(p) != RoleNames.Admin) return Results.Forbid(); if (!Enum.TryParse<VerificationStatus>(r.Status, true, out var status) || status is not (VerificationStatus.Verified or VerificationStatus.Rejected or VerificationStatus.Suspended)) return Results.BadRequest(); var w = await db.Workers.FindAsync([id], ct); if (w is null) return Results.NotFound(); w.VerificationStatus = status; db.AuditEntries.Add(new AuditEntry { ActorId = UserId(p), Action = "worker.verification", Details = $"{id}:{status}", CreatedAt = DateTimeOffset.UtcNow }); await db.SaveChangesAsync(ct); return Results.Ok(new { w.Id, w.VerificationStatus }); });
 admin.MapGet("/users", async (UserManager<ApplicationUser> users) => { var list = await users.Users.ToListAsync(); var output = new List<object>(); foreach (var u in list) output.Add(new { id = u.Id, email = u.Email, displayName = u.DisplayName, role = (await users.GetRolesAsync(u)).FirstOrDefault() ?? "", isSuspended = u.IsSuspended }); return output; });
