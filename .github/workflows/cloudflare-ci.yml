@@ -9,13 +9,13 @@ permissions:
 jobs:
   verify:
     runs-on: ubuntu-latest
-    env:
-      WRANGLER_LOG_PATH: ${{ runner.temp }}/cloudflare-wrangler.log
-      XDG_CONFIG_HOME: ${{ runner.temp }}/cloudflare-xdg
     steps:
       - uses: actions/checkout@v4
       - name: Prepare Wrangler local config directory
-        run: mkdir -p "$XDG_CONFIG_HOME"
+        run: |
+          echo "WRANGLER_LOG_PATH=$RUNNER_TEMP/cloudflare-wrangler.log" >> "$GITHUB_ENV"
+          echo "XDG_CONFIG_HOME=$RUNNER_TEMP/cloudflare-xdg" >> "$GITHUB_ENV"
+          mkdir -p "$RUNNER_TEMP/cloudflare-xdg"
       - uses: actions/setup-node@v4
         with:
           node-version: 22
