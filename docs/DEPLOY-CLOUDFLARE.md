@@ -65,6 +65,10 @@ npx wrangler d1 migrations apply DB --env staging --remote
 
 These commands use the `DB` binding from the selected staging environment. Repeat against production only after its separate D1 binding exists, the change has been reviewed, and staging has been exercised. Check the database binding and environment before every `--remote` command. Never use destructive reset commands on remote databases.
 
+The existing staging database already has its guard markers. For a newly provisioned isolated demo database only, verify the actual D1 binding/name first, then set `deployment_info` keys `database_name=daqqa-t-id_staging_demo` and `environment=staging`. They must match the selected staging variables exactly. Do not add these markers to a real marketplace database or a production binding. The migration deliberately leaves the marker table empty.
+
+For owner administration, register through the app using a private password. An authorized account operator can then confirm the exact user ID/email in D1, promote that specific user to `Admin` and record the decision in `audit_entries`. The user should sign out and back in. Public registration accepts only Customer/Worker; the app never promotes the first registrant automatically. Do not add a shared administrator password to Wrangler variables, source or chat.
+
 ## Deploy
 
 Authenticate Wrangler with an operator account or a narrowly scoped Cloudflare API token. Keep tokens in the local secret store or CI secret store; never paste them into command arguments, logs, source, or chat. For an operator-driven deployment, the script checks that the selected environment's placeholder IDs and origin have been replaced, runs type checks and the SQLite-backed tests, builds the frontend, and publishes the selected Worker:
