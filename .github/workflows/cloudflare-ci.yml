@@ -1,0 +1,83 @@
+name: Cloudflare Worker CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    env:
+      WRANGLER_LOG_PATH: ${{ runner.temp }}/cloudflare-wrangler.log
+      XDG_CONFIG_HOME: ${{ runner.temp }}/cloudflare-xdg
+    steps:
+      - uses: actions/checkout@v4
+      - name: Prepare Wrangler local config directory
+        run: mkdir -p "$XDG_CONFIG_HOME"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            src/cloudflare/package-lock.json
+            src/frontend/package-lock.json
+            tests/e2e/package-lock.json
+      - name: Install Cloudflare dependencies
+        run: npm ci
+        working-directory: src/cloudflare
+      - name: Type check Worker
+        run: npm run check
+        working-directory: src/cloudflare
+      - name: Install frontend dependencies
+        run: npm ci
+        working-directory: src/frontend
+      - name: Build frontend assets
+        run: npm run build
+        working-directory: src/frontend
+      - name: Test Worker in workerd with local D1
+        run: npm test
+        working-directory: src/cloudflare
+      - name: Validate Worker and static asset bundle
+        run: npx wrangler deploy --dry-run --env=""
+        working-directory: src/cloudflare
+      - name: Install browser journey dependencies
+        run: npm ci --prefix tests/e2e
+      - name: Install Chromium for Playwright
+        run: npx playwright install --with-deps chromium
+        working-directory: tests/e2e
+      - name: Apply local D1 migrations
+        run: npx wrangler d1 migrations apply daqqa-t-id --local
+        working-directory: src/cloudflare
+      - name: Start local Cloudflare Worker
+        run: |
+          nohup ./node_modules/.bin/wrangler dev --ip 127.0.0.1 --port 8787 > "$RUNNER_TEMP/cloudflare-worker.log" 2>&1 &
+          echo $! > "$RUNNER_TEMP/cloudflare-worker.pid"
+          for attempt in $(seq 1 30); do
+            if curl --silent --show-error --fail http://127.0.0.1:8787/health/ready; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat "$RUNNER_TEMP/cloudflare-worker.log"
+          exit 1
+        working-directory: src/cloudflare
+      - name: Run real browser journeys against Wrangler
+        run: npm test --prefix tests/e2e
+        env:
+          E2E_BASE_URL: http://127.0.0.1:8787
+      - name: Save browser failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cloudflare-browser-failure
+          path: |
+            ${{ runner.temp }}/cloudflare-worker.log
+            tests/e2e/test-results/
+      - name: Stop local Cloudflare Worker
+        if: always()
+        run: |
+          if [ -f "$RUNNER_TEMP/cloudflare-worker.pid" ]; then
+            kill "$(cat "$RUNNER_TEMP/cloudflare-worker.pid")" || true
+          fi

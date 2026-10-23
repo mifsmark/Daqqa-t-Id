@@ -20,7 +20,8 @@ async function actor(credentials) {
   await post('/api/auth/login', credentials);
   session = await ok(await api.get('/api/session'));
   csrf = session.csrfToken;
-  return { api, post, user: session.user };
+  const upload = async (path, multipart) => ok(await api.post(path, { headers: { 'X-CSRF-TOKEN': csrf }, multipart }));
+  return { api, post, upload, user: session.user };
 }
 async function ok(response) {
   // Error bodies can contain submitted data; log only path and HTTP status.
@@ -32,7 +33,7 @@ try {
   const admin = await actor({ email, password });
   assert.equal(admin.user.role, 'Admin');
   const health = await admin.api.get('/health/ready');
-  assert.equal(health.status(), 200, 'Azure SQL readiness failed.');
+  assert.equal(health.status(), 200, 'Database readiness failed.');
   assert.equal(health.headers()['x-robots-tag'], 'noindex, nofollow');
   const robots = await admin.api.get('/robots.txt');
   assert.equal(await robots.text(), 'User-agent: *\nDisallow: /\n');
@@ -57,10 +58,22 @@ try {
     assert.equal(booking.status, status);
     assert.equal(booking.isSimulated, true);
   }
+  const bytes = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9ZtV8AAAAASUVORK5CYII=', 'base64');
+  const media = await customer.upload('/api/media', {
+    purpose: 'booking', bookingId: id,
+    file: { name: 'fictional-staging.png', mimeType: 'image/png', buffer: bytes },
+  });
+  const photo = await worker.api.get(media.url);
+  assert.equal(photo.status(), 200, 'Assigned worker cannot read the private booking photo.');
+  assert.deepEqual(await photo.body(), bytes);
+  assert.match(photo.headers()['cache-control'] ?? '', /no-store/);
+  const anonymous = await request.newContext({ baseURL: origin.origin, maxRedirects: 0 });
+  contexts.push(anonymous);
+  assert.equal((await anonymous.get(media.url)).status(), 404, 'Private booking photo is visible anonymously.');
   await customer.post(`/api/bookings/${id}/review`, { rating: 5, comment: 'Fictional staging smoke test review.' });
   const payments = await ok(await admin.api.get('/api/admin/payments'));
   assert.equal(payments.filter(p => p.bookingId === id && p.isSimulated === true).length, 1);
-  console.log(`Staging smoke passed: booking ${id} completed; one simulated payment and review verified.`);
+  console.log(`Staging smoke passed: booking ${id} completed; private photo, one simulated payment and review verified.`);
 } finally {
   await Promise.all(contexts.map(context => context.dispose()));
 }

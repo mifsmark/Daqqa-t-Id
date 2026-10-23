@@ -1,6 +1,8 @@
 **/bin/
 **/obj/
 **/node_modules/
+**/.wrangler/
+src/cloudflare/worker-configuration.d.ts
 **/dist/
 **/playwright-report/
 **/test-results/

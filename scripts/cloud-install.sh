@@ -18,6 +18,7 @@ if [ ! -x "$DOTNET_ROOT/dotnet" ]; then
 fi
 dotnet restore DaqqaTid.slnx
 npm ci --prefix src/frontend
+npm ci --prefix src/cloudflare
 npm ci --prefix tests/e2e
 npm run build --prefix src/frontend
 mkdir -p src/backend/DaqqaTid.Api/wwwroot

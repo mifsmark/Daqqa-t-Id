@@ -1,5 +1,7 @@
 # Daqqa t’Id engineering
 
+The owner has additionally authorized a Cloudflare-only backend in `src/cloudflare` using Workers, D1 and free-tier KV, while preserving the original .NET/Azure implementation and shared React API contract. Keep both paths usable. Cloudflare uses integer EUR cents, UTC ISO timestamps, D1 transaction/trigger-backed reservation constraints and explicit migrations. The SQL Server invariants below still apply to the Azure path; never substitute SQLite for its SQL-backed tests. No paid Cloudflare services or Azure resources may be enabled without authorization.
+
 Build the fixed .NET 10 / EF Core SQL Server / React TypeScript modular monolith in the user brief. Domain owns entities and rules; Application owns booking and matching services; Infrastructure owns EF, Identity, storage, seed and migrations; Api owns HTTP, authorization, SEO and hosting; frontend owns responsive UI. See docs/API-CONTRACT.md for shared wire shapes.
 
 Use nullable C#, asynchronous I/O, UTC persistence and Europe/Malta display, decimal EUR amounts and readable feature services. Never weaken verification or bypass failing tests. Never fabricate availability, ratings, payments or deployment.

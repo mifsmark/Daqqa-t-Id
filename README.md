@@ -1,8 +1,22 @@
 # Daqqa t’Id
 
-Daqqa t’Id connects people in Malta and Gozo with local service professionals. The MVP is a .NET 10 modular monolith with React/Vite served from the same ASP.NET Core origin, and SQL Server for persistence.
+Daqqa t’Id connects people in Malta and Gozo with local service professionals. The shared React/Vite app supports two same-origin backends: Cloudflare Workers with D1/KV for free-tier hosting, and the original .NET 10/SQL Server implementation for Azure.
 
-## Run locally
+## Cloudflare staging and local development
+
+Staging has been published at [daqqa-t-id-staging.daqqatid-75d7e2e4.workers.dev](https://daqqa-t-id-staging.daqqatid-75d7e2e4.workers.dev). It is a fictional, non-indexed demo with simulated payments. Deployment is recorded separately from public functional verification in [PROGRESS.md](docs/PROGRESS.md).
+
+With Node 22 or newer:
+
+```sh
+npm ci --prefix src/frontend
+npm ci --prefix src/cloudflare
+scripts/dev-cloudflare.sh
+```
+
+See [Cloudflare deployment](docs/DEPLOY-CLOUDFLARE.md) for bindings, reviewed D1 migrations, tests and free quotas. The [backend decision](docs/adr/0003-cloudflare-free-backend.md) explains how the Azure path is retained and what a later data migration needs. The two backends do not synchronize databases automatically.
+
+## Run the original .NET/SQL Server version locally
 
 Requirements: .NET 10 SDK, Node 22, Docker Compose. Copy `.env.example` to `.env` and set a unique local SQL password (12+ characters with upper/lowercase, number, and symbol). Then:
 
@@ -26,7 +40,7 @@ SQL data is retained in the `daqqatid-sql` named volume. `docker compose down -v
 
 ## Engineering decisions
 
-Deployment uses Azure App Service, Azure SQL, managed identity, private blob storage, and optional GitHub OIDC. Provisioning is manual and creates chargeable resources. Read the migration, identity, and teardown steps in the deployment guide before using a real Azure subscription. MCP integration remains optional; see [MCP integration](docs/MCP-INTEGRATION.md).
+Cloudflare staging uses Workers Free, D1 and KV. It does not enable paid services. The original Azure option uses App Service, Azure SQL, managed identity, private blob storage, and optional GitHub OIDC. The default Azure template creates chargeable resources and must not be run for a free-only request. Read the migration, identity, and teardown steps in its deployment guide before using a personal Azure subscription. MCP integration remains optional; see [MCP integration](docs/MCP-INTEGRATION.md).
 
 For a one-command local fictional demo, run `node scripts/dev.mjs`. It creates an ignored local password only when none exists, starts SQL, applies migrations, builds the frontend, and starts the same-origin application. It requires the tools above and access to Microsoft's SQL container downloads. Set `DAQQA_DEV_PORT=5180` if the default port 5080 is already in use; the helper uses the selected port for the app and its public origin. The full startup was exercised in the cloud development environment, including migration application and a successful `/health/ready` response against SQL Server. Demo persona access is available only when both Development and `Demo__Enabled=true` are set; the helper binds to the local machine. Production never exposes demo personas.
 

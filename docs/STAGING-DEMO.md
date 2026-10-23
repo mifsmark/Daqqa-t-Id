@@ -1,5 +1,7 @@
 # Isolated fictional staging demo
 
+The free Cloudflare alternative is now available separately; see [DEPLOY-CLOUDFLARE.md](DEPLOY-CLOUDFLARE.md) and [PROGRESS.md](PROGRESS.md). The rest of this guide describes the retained Azure path. Cloudflare uses D1/KV and does not create Azure resources.
+
 Use a **personal Azure account/subscription** dedicated to Daqqa t’Id. Do not use the owner's Kingmakers work tenant, subscriptions, identities or resources. A new personal Azure account can be created at https://azure.microsoft.com/free/; Azure may require identity/payment verification. This repository does not create accounts or resources automatically.
 
 No public Azure deployment has been performed. The default `infra/main.bicep` creates billable resources, including B1, Basic SQL, Blob and monitoring. **Do not run that template for a free-only request.** Azure's [F1 shared App Service plan](https://learn.microsoft.com/azure/app-service/overview-hosting-plans) and [SQL free offer](https://learn.microsoft.com/azure/azure-sql/database/free-offer) are an option to evaluate in the personal subscription: SQL includes 100,000 vCore seconds and 32 GB data/backup per database per month, with `AutoPause` on free-limit exhaustion. Choose pause rather than paid continuation; verify offer eligibility and the complete resource cost summary before any deployment. F1 has CPU/storage quotas, sleeps and no production availability guarantee. Blob/monitoring in the default template are separate cost categories. No free-only infrastructure provisioning has been verified here.
