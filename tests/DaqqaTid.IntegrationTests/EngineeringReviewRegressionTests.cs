@@ -20,6 +20,35 @@ public sealed class EngineeringReviewRegressionTests : IAsyncLifetime
     public async Task DisposeAsync() => await factory.DisposeAsync();
 
     [Fact]
+    public async Task Worker_hours_round_trip_as_numeric_weekdays_and_minute_times_for_the_shared_setup_form()
+    {
+        using var worker = await Register(factory, RoleNames.Worker);
+        var (workerId, _) = await ConfigureWorker(worker);
+        await JsonOk(await worker.PutAsJsonAsync("/api/worker/availability", new
+        {
+            availableNow = false,
+            windows = new[] { new { dayOfWeek = 1, startTime = "09:00", endTime = "17:00" } },
+            exceptions = Array.Empty<object>()
+        }));
+        var ownProfile = await worker.GetFromJsonAsync<JsonElement>("/api/worker/profile");
+        var ownHours = ownProfile.GetProperty("availability").EnumerateArray().Single();
+        Assert.Equal(JsonValueKind.Number, ownHours.GetProperty("dayOfWeek").ValueKind);
+        Assert.Equal(1, ownHours.GetProperty("dayOfWeek").GetInt32());
+        Assert.Equal("09:00", ownHours.GetProperty("startTime").GetString());
+        Assert.Equal("17:00", ownHours.GetProperty("endTime").GetString());
+        var publicProfile = await worker.GetFromJsonAsync<JsonElement>($"/api/workers/{workerId}");
+        Assert.Equal(ownHours.GetRawText(), publicProfile.GetProperty("availability").EnumerateArray().Single().GetRawText());
+        await JsonOk(await worker.PutAsJsonAsync("/api/worker/availability", new
+        {
+            availableNow = false,
+            windows = ownProfile.GetProperty("availability"),
+            exceptions = Array.Empty<object>()
+        }));
+        var reloaded = await worker.GetFromJsonAsync<JsonElement>("/api/worker/profile");
+        Assert.Equal(1, reloaded.GetProperty("availability").EnumerateArray().Single().GetProperty("dayOfWeek").GetInt32());
+    }
+
+    [Fact]
     public async Task Verification_resubmission_preserves_approval_and_cannot_clear_admin_suspension()
     {
         using var customer = await Register(factory, RoleNames.Customer);
