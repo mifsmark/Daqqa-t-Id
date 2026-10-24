@@ -8,7 +8,7 @@ Proposed starting area: **Mosta**, as a practical single-locality assumption onl
 
 Start with **home cleaning** and **furniture assembly/setup**, limited to ordinary, non-hazardous tasks. Ask workers to exclude work they are not trained or equipped to do, including hazardous cleaning, power-tool operation in customer-participation modes, heavy lifting, and electrical, plumbing, gas, structural, or other regulated work. The app catalog includes regulated categories; do not promote them as part of this pilot.
 
-The staging site at <https://daqqa-t-id-staging.daqqatid-75d7e2e4.workers.dev> is a fictional, noindex demo. Its profiles and bookings are test records, its payments are simulated, and remote public user journeys are not yet verified. It is suitable only for a clearly labelled demo invitation. It is not a live marketplace or a destination for real worker/customer details.
+The staging site at <https://daqqa-t-id-staging.daqqatid-75d7e2e4.workers.dev> is a fictional, noindex demo. Its profiles and bookings are test records, its booking payments are simulated, and the public HTTPS lifecycle/notification/private-photo smoke has passed. Real device alert display still needs a phone test. It is suitable only for a clearly labelled demo invitation. It is not a live marketplace or a destination for real worker/customer details.
 
 Before real-pilot invitations, the owner/operator should complete and record all of these launch checks:
 

@@ -2,7 +2,7 @@
 
 ## Status
 
-The original .NET/SQL Server MVP remains available on `feat/marketplace-mvp`, with an additional Cloudflare Workers/D1/KV backend using the same React app and API contract. Cloudflare staging has been published at **https://daqqa-t-id-staging.daqqatid-75d7e2e4.workers.dev**. The public health endpoint now responds from this workspace; the notification release's public lifecycle smoke is pending its deployment. Deployment success alone is not a verified user journey. No Azure resources, paid Cloudflare subscription or production payments have been created. PR #1 remains open and unmerged.
+The original .NET/SQL Server MVP remains available on `feat/marketplace-mvp`, with an additional Cloudflare Workers/D1/KV backend using the same React app and API contract. Cloudflare staging has been published at **https://daqqa-t-id-staging.daqqatid-75d7e2e4.workers.dev**. The notification release is deployed and its public HTTPS booking/notification/photo/review smoke passed. Actual phone OS alert display still requires an opted-in device. No Azure resources, paid Cloudflare subscription or production payments have been created. PR #1 remains open and unmerged.
 
 Lower-cost GPT-6 Luna agents implemented the backend, frontend, infrastructure and tests under the primary agent's architectural, security and integration review. Initial network blocks on SQL downloads and GitHub API access were resolved after the saved network configuration became effective; both operations now work.
 
@@ -16,7 +16,11 @@ The actual .NET browser run found that projecting `Guid.ToString()` through SQL 
 
 Public home/service/join copy leads with useful local help, working together and learning practical skills. Eligibility/verification notes appear briefly at relevant section ends. Regulated-service enforcement and visible demo labels remain in place. Optional, one-off platform support is available through a validated owner-configured Stripe Payment Link **in Production only**; it changes no access, ranking, priority or booking price. The footer and post-completion card explain the choice. Staging always disables checkout. No Stripe account/link is connected, no money was received and checkout clicks/returns are never treated as payment. See [MONETIZATION.md](MONETIZATION.md).
 
-Verified locally: frontend type/lint/build and **13 tests**; Worker type checking and **36 workerd/D1 tests**; .NET Release build with **zero warnings/errors**, **28 unit tests** and **22 real SQL Server integration tests**; all **five browser journeys on each backend**. The notification browser journey checks actual recipient inboxes, ownership/read state and navigation; the mobile setup journey checks the bell at 375px. Full hosted CI and the new staging deployment are pending at this point; earlier green CI/version records below refer to prior source revisions.
+Verified locally: frontend type/lint/build and **13 tests**; Worker type checking and **36 workerd/D1 tests**; .NET Release build with **zero warnings/errors**, **28 unit tests** and **22 real SQL Server integration tests**; all **five browser journeys on each backend**. The notification browser journey checks actual recipient inboxes, ownership/read state and navigation; the mobile setup journey checks the bell at 375px. Both complete hosted workflows passed for source `ad337e57b2cb0875a4675940ecd86dee343c37ad`: [Cloudflare Worker CI 40125719219](https://github.com/mifsmark/Daqqa-t-Id/actions/runs/40125719219) and [.NET/SQL Server CI 40125719021](https://github.com/mifsmark/Daqqa-t-Id/actions/runs/40125719021). The latter passed formatting, unit/integration checks, all five browser journeys, the expanded HTTPS SQL staging smoke and reviewed migration artifact generation. Its unexpired `ci-release` artifact is 58,575,818 bytes. Earlier green CI/version records below are historical.
+
+Applied the reviewed D1 migration remotely (14 statements) and configured the three VAPID secrets privately, without exposing keys. Published source tag `ad337e5` as Worker version **`d20a882d-e972-496e-8fd8-543fbad2ba3f`**. Cloudflare API confirms **100% traffic**, the one-minute retry cron and all three secret names; the account still has **zero paid subscriptions**. No Azure resources or PR merge were performed.
+
+The **actual public HTTPS smoke passed** against the deployed origin: private temporary administrator login, isolated fictional customer/helper fixture, request → accept → confirm → start → complete, notifications in each intended recipient inbox, review notification, private image bytes with participant access/anonymous denial, exactly one simulated payment and disabled real support checkout. Authenticated phone-alert configuration was verified enabled with the expected public key and no device falsely marked subscribed. The temporary operator was suspended and its sessions revoked afterward. The remote smoke now explicitly uses the session HTTPS proxy; Playwright's API client does not inherit it automatically. Generic Python user-agent requests received Cloudflare 1010, while the clearly identified staging-smoke client and browser/API clients worked. This was separate from the old workspace hostname restriction. Actual provider acceptance/OS phone display, owner administration and real money receipt remain unverified.
 
 ## Manual-test preparation — 24 October 2026
 
@@ -70,17 +74,17 @@ Unfinished expansion work from the prior session (messaging, dynamic forms and p
 | Check | Actual result |
 | --- | --- |
 | .NET Release solution build | Passed; zero warnings/errors |
-| .NET unit/model tests | 16 passed, zero skipped; includes Cloudflare-to-Identity password compatibility |
-| Integration tests | 14 passed, zero skipped: eight real SQL-backed scenarios and six hosting/configuration cases; includes availability API round-trip |
+| .NET unit/model tests | 28 passed, zero skipped; includes Cloudflare-to-Identity password compatibility |
+| Integration tests | 22 passed, zero skipped against actual SQL Server; migrated fresh catalogs, notification ownership/delivery/revocation and exact booking-ID wire format included |
 | SQL lifecycle coverage | ForMe plumber accept/confirm/start/complete/payment; WithMe quote/confirm; TeachMe quote/complete/review; admin verification; ownership/address/media restrictions; idempotency; concurrent overlapping accepts with one winner; cancellation releases reservation; repeated category updates |
 | Browser tests | Five passed against each local backend: registration/search, authenticated fixture screen, booking/photo/review lifecycle, mobile helper onboarding/share handling and guest booking signup handoff |
-| Frontend | Type check, ESLint, four tests and production build passed; dependency audit reported zero vulnerabilities |
+| Frontend | Type check, ESLint, 13 tests and production build passed |
 | Mobile/PWA | 375px landing/register have no horizontal overflow; offline fallback works; API/private responses are not service-worker cached |
-| Database | Initial migration generated/applied; model has no pending changes; SQL singleton keys and declared FKs covered by model tests |
+| Database | Reviewed initial and notification migrations applied to fresh SQL test catalogs and local/remote staging D1; retained databases were not reset |
 | Infrastructure | Bicep compilation and Compose/YAML configuration checks passed |
-| Hosted CI | Both complete workflows passed on `cf17bdd`; links are recorded in the manual-test section. Includes 16 unit/model tests, 14 integrations, five browser journeys per backend and HTTPS SQL staging smoke. No Azure deployment was run. |
-| Cloudflare backend | TypeScript, 20 workerd/D1 tests and asset build passed; five browser journeys passed against Wrangler, including mobile onboarding and booking auth handoff |
-| Cloudflare deployment | Reviewed migration applied to remote D1; Worker and assets published; no paid subscription enabled. Public HTTPS functional smoke remains blocked by this workspace’s hostname allowlist. |
+| Hosted CI | Both complete workflows passed on `ad337e5`; links above. Includes 28 unit/model tests, 22 SQL integrations, five browser journeys per backend and expanded HTTPS SQL staging smoke. No Azure deployment was run. |
+| Cloudflare backend | TypeScript, 36 workerd/D1 tests and asset build passed; all five real browser journeys passed against Wrangler, including recipient inboxes and the mobile bell |
+| Cloudflare deployment | Version `d20a882d-e972-496e-8fd8-543fbad2ba3f` receives 100% traffic; migration 0002, VAPID secrets and retry cron configured. Public HTTPS lifecycle/notification/private-photo smoke passed. Zero paid subscriptions. |
 | Setup/start | cloud-install.sh executed; dev helper applied migrations, seeded development data and reached SQL readiness/functional API checks; repeat startup preserves existing profiles |
 
 SQL-backed testing found and fixed new-entity tracking errors in worker offerings and booking history, plus replacement ordering for unique/composite keys. Tests retained their original ownership/concurrency assertions.
@@ -107,9 +111,9 @@ Run browser checks from `tests/e2e` with `E2E_BASE_URL` pointing to the running 
 
 ## Remaining launch actions and limits
 
-- Run the new public HTTPS staging booking/notification/photo/review smoke after this release passes CI and deploys. The public health endpoint now responds. An owner administrator still needs normal account registration followed by private promotion.
+- Public HTTPS staging lifecycle/notification smoke now passes. Verify actual alert display on a consenting helper/customer phone. An owner administrator still needs normal account registration followed by private promotion.
 - Azure deployment needs a separate personal subscription, a reviewed free-only configuration, OIDC variables, SQL identities/firewall permissions and protected demo-admin secrets. Never use Kingmakers work resources. The default Bicep template is billable and must not be run for this free-only request. See STAGING-DEMO.md and DEPLOY-AZURE.md. No Azure resources were created; Azure SQL-backed post-deployment smoke remains unrun until deployment is authorized and configured.
-- Payments are simulated and no card details are collected. Legal/privacy text is a review placeholder. This is a controlled demo/pilot foundation, not a claim of live payment or legal readiness.
+- Booking payments are simulated and no card details are collected. Optional platform support is implemented but needs an owner-controlled Stripe Payment Link and Production configuration; staging cannot charge. Legal/privacy text remains a review placeholder.
 - SMTP and the Azure Blob adapter compile, but live SMTP delivery and Azure managed-identity Blob access have not been exercised against configured cloud accounts. Local media upload/privacy behavior is verified.
 - Booking photos are currently accepted after confirmation; request-stage photos are not implemented. Category-specific dynamic attribute forms, automated matching notifications/SMS, in-app chat, dispute case management and automatic privacy export/erasure are not implemented. Privacy requests are actionable admin tasks; see OPERATIONS.md.
 - Geography uses known locality centroids, SQL geography persistence and Haversine distance. It does not represent live GPS or precise road travel time.
@@ -118,6 +122,6 @@ Run browser checks from `tests/e2e` with `E2E_BASE_URL` pointing to the running 
 
 ## Next three priorities
 
-1. Complete the public Cloudflare staging smoke after the saved network allowance becomes effective, then enable owner administration privately after account registration. Both source CI workflows have passed. Do not merge or provision Azure resources; the retained Azure path is optional future work with separate personal-account/free-tier review.
+1. Test actual phone-alert receipt with the owner, then enable owner administration privately after account registration. The public staging smoke and both complete source CI workflows have passed. Do not merge or provision Azure resources; the retained Azure path is optional future work with separate personal-account/free-tier review.
 2. Complete legal/operational review, configure support/mail, and recruit a small verified worker cohort with assisted onboarding.
 3. Run a locality-focused pilot; measure request-to-confirmation conversion and worker response, then prioritize the largest observed usability issue and measure optional support payments separately from simulated bookings.

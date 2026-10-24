@@ -2,7 +2,7 @@
 
 Open [Daqqa t’Id staging](https://daqqa-t-id-staging.daqqatid-75d7e2e4.workers.dev). This tests the actual app using fictional jobs and simulated payments. It is not the real-service launch. Use test profile names, fictional addresses and harmless images; do not upload identity documents or arrange real work here.
 
-The current release, automated results and publication status are recorded in [PROGRESS.md](PROGRESS.md). Use the steps below to record your own phone and usability results; automated browser tests cannot establish that a real phone displayed an alert.
+The current deployed version is `d20a882d-e972-496e-8fd8-543fbad2ba3f` (source `ad337e5`); its public HTTPS booking/notification/private-photo/review smoke passed. The current release, automated results and publication status are recorded in [PROGRESS.md](PROGRESS.md). Use the steps below to record your own phone and usability results; automated browser tests cannot establish that a real phone displayed an alert.
 
 ## Two people, or two browser sessions
 

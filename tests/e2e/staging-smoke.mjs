@@ -9,8 +9,14 @@ if (origin.protocol !== 'https:' || origin.hostname === 'missing.invalid' || ori
   throw new Error('Set HTTPS STAGING_SMOKE_URL and protected STAGING_ADMIN_EMAIL / STAGING_ADMIN_PASSWORD credentials for the isolated demo.');
 
 const contexts = [];
+// Playwright's API client does not use the process HTTPS proxy automatically.
+// Keep local CI smoke traffic direct; route remote HTTPS through the configured
+// session proxy, preserving its CA trust and credential injection.
+const localTarget = ['localhost', '127.0.0.1', '[::1]'].includes(origin.hostname);
+const proxyServer = !localTarget && (process.env.HTTPS_PROXY || process.env.https_proxy);
+const contextOptions = { baseURL: origin.origin, maxRedirects: 0, ...(proxyServer ? { proxy: { server: proxyServer } } : {}) };
 async function actor(credentials) {
-  const api = await request.newContext({ baseURL: origin.origin, maxRedirects: 0 });
+  const api = await request.newContext(contextOptions);
   contexts.push(api);
   let session = await ok(await api.get('/api/session'));
   assert.equal(session.stagingDemoEnabled, true, 'Refusing to write: target is not the isolated staging demo.');
@@ -77,7 +83,7 @@ try {
   assert.equal(photo.status(), 200, 'Assigned worker cannot read the private booking photo.');
   assert.deepEqual(await photo.body(), bytes);
   assert.match(photo.headers()['cache-control'] ?? '', /no-store/);
-  const anonymous = await request.newContext({ baseURL: origin.origin, maxRedirects: 0 });
+  const anonymous = await request.newContext(contextOptions);
   contexts.push(anonymous);
   assert.equal((await anonymous.get(media.url)).status(), 404, 'Private booking photo is visible anonymously.');
   await customer.post(`/api/bookings/${id}/review`, { rating: 5, comment: 'Fictional staging smoke test review.' });
