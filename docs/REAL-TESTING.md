@@ -2,7 +2,7 @@
 
 Open [Daqqa t’Id staging](https://daqqa-t-id-staging.daqqatid-75d7e2e4.workers.dev). This tests the actual app using fictional jobs and simulated payments. It is not the real-service launch. Use test profile names, fictional addresses and harmless images; do not upload identity documents or arrange real work here.
 
-The latest automated results and publication status are in [PROGRESS.md](PROGRESS.md). A successful deployment or local test does not establish that the public site works. Record the manual results below as you test; the public HTTPS smoke is still pending the development workspace's network access.
+The updated demo is published as version `6ecaf39d-1f3f-4703-83d2-71f1518bcee3` (source tag `cf17bdd`). Both complete CI suites passed, including all five browser journeys on each backend. The latest automated results and publication status are in [PROGRESS.md](PROGRESS.md). A successful deployment or local test does not establish that the public site works. Record the manual results below as you test; the public HTTPS smoke is still pending the development workspace's network access.
 
 ## Two people, or two browser sessions
 
