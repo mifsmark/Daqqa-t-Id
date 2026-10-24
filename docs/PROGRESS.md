@@ -1,10 +1,22 @@
-# Delivery progress — 23 October 2026
+# Delivery progress — 24 October 2026
 
 ## Status
 
 The original .NET/SQL Server MVP remains available on `feat/marketplace-mvp`, with an additional Cloudflare Workers/D1/KV backend using the same React app and API contract. Cloudflare staging has been published at **https://daqqa-t-id-staging.daqqatid-75d7e2e4.workers.dev**. Public functional verification is pending this cloud workspace's new-hostname network allowance; deployment success alone is not a verified user journey. No Azure resources, paid Cloudflare subscription or production payments have been created. PR #1 remains open and unmerged.
 
 Lower-cost GPT-6 Luna agents implemented the backend, frontend, infrastructure and tests under the primary agent's architectural, security and integration review. Initial network blocks on SQL downloads and GitHub API access were resolved after the saved network configuration became effective; both operations now work.
+
+## Manual-test preparation — 24 October 2026
+
+Prepared the current feature branch for hands-on testing. Guest booking now requires login/signup first and retains the actual selected helper through either path. Return destinations reject external/protocol-relative URLs. Mobile navigation closes after selection and exposes its expanded state; native-share cancellation is harmless and sharing/clipboard failures offer an accessible WhatsApp fallback.
+
+Worker onboarding now explains missing services/modes before advancing, rejects incomplete or reversed hours before any profile write, and explains that usual hours are needed for customers to book. Pricing copy distinguishes an explicit quote choice from a zero-priced service. Existing suspension, ASAP, ownership and payment invariants remain unchanged; no backend/schema change was needed.
+
+Local verification passed: all **five Playwright journeys** against Wrangler/D1, including a 375px three-step helper setup with persistence and hours validation, native-share failure/cancellation, and real helper selection after signup plus external redirect rejection. The existing full booking/private-photo/review journey still passes. Frontend build, ESLint, four frontend tests, browser TypeScript checking, Cloudflare type checking and **20 workerd/D1 tests** also passed. Both GitHub CI workflows will run on this source commit; the preceding verified runs below are historical until the new runs complete.
+
+Added [REAL-TESTING.md](REAL-TESTING.md) with two-account test steps and expected results. [LAUNCH-KIT.md](LAUNCH-KIT.md) has editable recruitment messages, a tally sheet and explicitly hypothetical EUR economics. [LAUNCH-AND-GROWTH.md](LAUNCH-AND-GROWTH.md) proposes a zero-spend Mosta cleaning/furniture-assembly pilot, starting with worker recruitment. Its goals are not current users, bookings or income. No outreach, social posts, paid promotion or real payments were performed. Owner/support contact and real-pilot operating details are still needed before a real-service launch.
+
+The owner supplied a screenshot showing **“Couldn’t publish environment — Your settings are saved.”** The saved draft was confirmed, but the platform reported no specific failure reason and no retained diagnostics. Commands became available despite the control plane still reporting Starting, so app work resumed. Cloudflare API access works and the account still has zero paid subscriptions. The actual public hostname request still fails at the workspace proxy (CONNECT 403); this is separate from app publication, and public signup/booking/free-CPU behavior is not yet verified. Do not replace the existing token merely because workspace publication failed. Updated Worker/asset publication and new hosted-CI results will be recorded after completion.
 
 ## Cloudflare alternative — 23 October 2026
 
@@ -55,7 +67,7 @@ Unfinished expansion work from the prior session (messaging, dynamic forms and p
 | Database | Initial migration generated/applied; model has no pending changes; SQL singleton keys and declared FKs covered by model tests |
 | Infrastructure | Bicep compilation and Compose/YAML configuration checks passed |
 | Hosted CI | Both workflows passed on `295625b`; links and artifacts are recorded in the Cloudflare section above. Includes HTTPS SQL staging smoke and both browser targets. No Azure deployment was run. |
-| Cloudflare backend | TypeScript, 20 workerd/D1 tests and Worker dry-run bundle passed; three real browser journeys passed against Wrangler |
+| Cloudflare backend | TypeScript, 20 workerd/D1 tests and asset build passed; five browser journeys passed against Wrangler, including mobile onboarding and booking auth handoff |
 | Cloudflare deployment | Reviewed migration applied to remote D1; Worker and assets published; no paid subscription enabled. Public HTTPS functional smoke remains blocked by this workspace’s hostname allowlist. |
 | Setup/start | cloud-install.sh executed; dev helper applied migrations, seeded development data and reached SQL readiness/functional API checks; repeat startup preserves existing profiles |
 

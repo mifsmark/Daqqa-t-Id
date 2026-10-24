@@ -6,6 +6,8 @@ Daqqa t’Id connects people in Malta and Gozo with local service professionals.
 
 Staging has been published at [daqqa-t-id-staging.daqqatid-75d7e2e4.workers.dev](https://daqqa-t-id-staging.daqqatid-75d7e2e4.workers.dev). It is a fictional, non-indexed demo with simulated payments. Deployment is recorded separately from public functional verification in [PROGRESS.md](docs/PROGRESS.md).
 
+Use the [manual testing guide](docs/REAL-TESTING.md) for helper/customer test accounts and a complete booking. The [launch kit](docs/LAUNCH-KIT.md) provides recruitment messages and a proposed first-locality pilot; real-service promotion begins after its launch checks.
+
 With Node 22 or newer:
 
 ```sh

@@ -41,7 +41,7 @@ test('fixture-backed UI journey: a customer can find a verified plumber for a Fo
     radiusKm: 15, offerings: [{ categoryId, modes: ['ForMe'], pricingType: 'Hourly', price: 35 }], availability: [], reviews: []
   };
 
-  await page.route('**/api/session', route => route.fulfill({ json: { user: null, csrfToken: 'browser-fixture-token', demoEnabled: false } }));
+  await page.route('**/api/session', route => route.fulfill({ json: { user: { id: '4b971bed-29b0-4811-9a47-88941e4a4cb5', email: 'fixture@example.test', displayName: 'Fixture Customer', role: 'Customer' }, csrfToken: 'browser-fixture-token', demoEnabled: false } }));
   await page.route('**/api/catalog', route => route.fulfill({ json: [{ id: categoryId, slug: 'plumbing', name: 'Plumbing', description: 'Repairs and maintenance', icon: 'wrench', modes: ['ForMe'], requiresVerification: true, isActive: true }] }));
   await page.route('**/api/workers**', route => route.fulfill({ json: [worker] }));
   await page.route(`**/api/workers/${workerId}`, route => route.fulfill({ json: worker }));

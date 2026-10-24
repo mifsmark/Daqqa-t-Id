@@ -76,6 +76,26 @@ function maltaLocalDateTimeToUtc(value: string) {
   }
   return new Date(guess).toISOString();
 }
+function safeReturnTo(value: string | null) {
+  if (
+    !value ||
+    !value.startsWith("/") ||
+    value.startsWith("//") ||
+    value.includes("\\")
+  )
+    return null;
+  try {
+    const target = new URL(value, location.origin);
+    if (
+      target.origin !== location.origin ||
+      ["/login", "/register"].includes(target.pathname)
+    )
+      return null;
+    return target.pathname + target.search + target.hash;
+  } catch {
+    return null;
+  }
+}
 function formatMaltaDateTime(value: string) {
   return new Intl.DateTimeFormat("en-MT", {
     timeZone: MALTA_TIME_ZONE,
@@ -101,24 +121,36 @@ function Header({ user }: { user: User | null }) {
       <button
         className="mobile-menu"
         aria-label="Open menu"
+        aria-expanded={open}
+        aria-controls="primary-navigation"
         onClick={() => setOpen(!open)}
       >
         {open ? <X /> : <Menu />}
       </button>
-      <nav className={open ? "nav nav-open" : "nav"}>
-        <NavLink to="/services">Explore services</NavLink>
-        <NavLink to="/join">Become a helper</NavLink>
+      <nav id="primary-navigation" className={open ? "nav nav-open" : "nav"}>
+        <NavLink to="/services" onClick={() => setOpen(false)}>
+          Explore services
+        </NavLink>
+        <NavLink to="/join" onClick={() => setOpen(false)}>
+          Become a helper
+        </NavLink>
         {user ? (
           <>
-            <NavLink to="/dashboard">My space</NavLink>
+            <NavLink to="/dashboard" onClick={() => setOpen(false)}>
+              My space
+            </NavLink>
             <button
               className="link-button"
               onClick={async () => {
-                await api("/api/auth/logout", json({}));
-                setCsrf("");
-                const refreshed = await api<Session>("/api/session");
-                setCsrf(refreshed.csrfToken);
-                location.href = "/";
+                try {
+                  await api("/api/auth/logout", json({}));
+                  setCsrf("");
+                  const refreshed = await api<Session>("/api/session");
+                  setCsrf(refreshed.csrfToken);
+                  location.href = "/";
+                } finally {
+                  setOpen(false);
+                }
               }}
             >
               Log out
@@ -126,8 +158,14 @@ function Header({ user }: { user: User | null }) {
           </>
         ) : (
           <>
-            <NavLink to="/login">Log in</NavLink>
-            <Link className="button button-small" to="/register">
+            <NavLink to="/login" onClick={() => setOpen(false)}>
+              Log in
+            </NavLink>
+            <Link
+              className="button button-small"
+              to="/register"
+              onClick={() => setOpen(false)}
+            >
               Join Daqqa t’Id
             </Link>
           </>
@@ -168,7 +206,11 @@ function Shell({
       <Header user={user} />
       {(demoEnabled || stagingDemoEnabled) && (
         <aside className="demo-banner" role="status">
-          <strong>{stagingDemoEnabled ? "Fictional staging demo" : "Development demo mode"}</strong>
+          <strong>
+            {stagingDemoEnabled
+              ? "Fictional staging demo"
+              : "Development demo mode"}
+          </strong>
           <span>
             Profiles and bookings are test records. Payments are simulated.
           </span>
@@ -604,6 +646,7 @@ function WorkerCard({ worker: w }: { worker: Worker }) {
 }
 function ShareButton({ title, url }: { title: string; url?: string }) {
   const [done, setDone] = useState(false);
+  const [error, setError] = useState("");
   const shareUrl = url || location.href;
   const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(`${title} · ${shareUrl}`)}`;
   return (
@@ -611,11 +654,20 @@ function ShareButton({ title, url }: { title: string; url?: string }) {
       <button
         className="button button-outline"
         onClick={async () => {
-          if (navigator.share) await navigator.share({ title, url: shareUrl });
-          else {
-            await navigator.clipboard.writeText(shareUrl);
-            setDone(true);
-            setTimeout(() => setDone(false), 2000);
+          setError("");
+          try {
+            if (navigator.share)
+              await navigator.share({ title, url: shareUrl });
+            else {
+              await navigator.clipboard.writeText(shareUrl);
+              setDone(true);
+              setTimeout(() => setDone(false), 2000);
+            }
+          } catch (e) {
+            if (e instanceof DOMException && e.name === "AbortError") return;
+            setError(
+              "We couldn’t share or copy this link. Try WhatsApp instead.",
+            );
           }
         }}
       >
@@ -630,6 +682,7 @@ function ShareButton({ title, url }: { title: string; url?: string }) {
       >
         Share on WhatsApp
       </a>
+      {error && <small role="alert">{error}</small>}
     </div>
   );
 }
@@ -765,6 +818,10 @@ function Auth({ register = false }: { register?: boolean }) {
   const nav = useNavigate();
   const qc = useQueryClient();
   const [busy, setBusy] = useState(false);
+  const switchParams = new URLSearchParams();
+  if (params.get("returnTo"))
+    switchParams.set("returnTo", params.get("returnTo")!);
+  const authSwitchPath = `${register ? "/login" : "/register"}${switchParams.size ? `?${switchParams}` : ""}`;
   async function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setErr("");
@@ -783,7 +840,10 @@ function Auth({ register = false }: { register?: boolean }) {
       setCsrf(refreshed.csrfToken);
       qc.setQueryData(["session"], refreshed);
       await qc.invalidateQueries();
-      nav(refreshed.user?.role === "Worker" ? "/worker" : "/dashboard");
+      nav(
+        safeReturnTo(params.get("returnTo")) ||
+          (refreshed.user?.role === "Worker" ? "/worker" : "/dashboard"),
+      );
     } catch (e) {
       setErr(e instanceof Error ? e.message : "Please try again.");
     } finally {
@@ -871,7 +931,7 @@ function Auth({ register = false }: { register?: boolean }) {
         )}
         <p className="form-foot">
           {register ? "Already have an account?" : "New to Daqqa t’Id?"}{" "}
-          <Link to={register ? "/login" : "/register"}>
+          <Link to={authSwitchPath}>
             {register ? "Log in" : "Create an account"}
           </Link>
         </p>
@@ -1081,6 +1141,7 @@ function BookingForm() {
     maltaLocalDateTimeValue(new Date(Date.now() + 86400000)),
   );
   const nav = useNavigate();
+  const { data: session, isLoading: sessionLoading } = useSession();
   const { data: cats = [] } = useCatalog();
   const { data: workers = [] } = useQuery({
     queryKey: ["workers", "booking"],
@@ -1099,7 +1160,9 @@ function BookingForm() {
           workerId: chosenWorker,
           categoryId: String(d.categoryId),
           durationMinutes: duration,
-          startAt: isAsap ? new Date().toISOString() : maltaLocalDateTimeToUtc(startAt),
+          startAt: isAsap
+            ? new Date().toISOString()
+            : maltaLocalDateTimeToUtc(startAt),
           isAsap,
           idempotencyKey: crypto.randomUUID(),
         }),
@@ -1110,6 +1173,34 @@ function BookingForm() {
         e instanceof Error ? e.message : "Please sign in and try again.",
       );
     }
+  }
+  if (sessionLoading)
+    return <div className="wrap page loading">Checking your account…</div>;
+  if (!session?.user) {
+    const returnTo = encodeURIComponent(location.pathname + location.search);
+    return (
+      <section className="wrap page narrow">
+        <Link
+          to={chosenWorker ? "/workers/" + chosenWorker : "/find"}
+          className="back-link"
+        >
+          ← Back
+        </Link>
+        <span className="eyebrow">A SIMPLE REQUEST</span>
+        <h1>Tell them what you need.</h1>
+        <div className="empty compact">
+          <h3>Sign in before sending your request</h3>
+          <p>Your selected helper will still be ready when you return.</p>
+          <Link to={`/login?returnTo=${returnTo}`} className="button">
+            Log in <ArrowRight />
+          </Link>
+          <p className="form-foot">
+            New to Daqqa t’Id?{" "}
+            <Link to={`/register?returnTo=${returnTo}`}>Create an account</Link>
+          </p>
+        </div>
+      </section>
+    );
   }
   return (
     <section className="wrap page narrow">
@@ -1207,7 +1298,9 @@ function BookingForm() {
           />
         </label>
         <small className="help-text">
-          {isAsap ? "ASAP uses the next few minutes, within the helper’s working hours and time off." : "Times are shown in Malta local time."}
+          {isAsap
+            ? "ASAP uses the next few minutes, within the helper’s working hours and time off."
+            : "Times are shown in Malta local time."}
         </small>
         <label>
           Estimated time
@@ -1249,8 +1342,13 @@ function BookingForm() {
           </div>
         )}
         <label className="check-filter">
-          <input type="checkbox" name="isAsap" checked={isAsap} onChange={(e) => setIsAsap(e.target.checked)} /> I need help as soon as
-          possible
+          <input
+            type="checkbox"
+            name="isAsap"
+            checked={isAsap}
+            onChange={(e) => setIsAsap(e.target.checked)}
+          />{" "}
+          I need help as soon as possible
         </label>
         {error && (
           <p role="alert" className="form-error">
@@ -1391,6 +1489,7 @@ function WorkerSetup() {
     const categoryIds = FormDataArray(form, "categoryIds");
     const modesSelected = FormDataArray(form, "modes");
     try {
+      const windows = weeklyWindows(form);
       await api("/api/worker/profile", {
         method: "PUT",
         body: JSON.stringify({
@@ -1403,7 +1502,6 @@ function WorkerSetup() {
           pricingType: d.pricingType || "Hourly",
         }),
       });
-      const windows = weeklyWindows(form);
       await api("/api/worker/availability", {
         method: "PUT",
         body: JSON.stringify({
@@ -1412,7 +1510,11 @@ function WorkerSetup() {
           exceptions: timeOff,
         }),
       });
-      setNotice("Your profile and usual hours have been saved.");
+      setNotice(
+        windows.length
+          ? "Your profile and usual hours have been saved."
+          : "Your profile is saved. Add usual hours before customers can book you.",
+      );
       await qc.invalidateQueries({ queryKey: ["worker-profile"] });
     } catch (e) {
       setNotice(
@@ -1466,6 +1568,18 @@ function WorkerSetup() {
       invalid.reportValidity();
       return;
     }
+    if (
+      step === 2 &&
+      form &&
+      (!FormDataArray(form, "categoryIds").length ||
+        !FormDataArray(form, "modes").length)
+    ) {
+      setNotice(
+        "Choose at least one service and one way to help before continuing.",
+      );
+      return;
+    }
+    setNotice("");
     setStep((value) => Math.min(3, value + 1));
   }
   if (sessionLoading)
@@ -1647,8 +1761,8 @@ function WorkerSetup() {
             />
           </label>
           <small id="price-help" className="help-text">
-            Enter your hourly or fixed price. Leave 0 if you prefer to agree a
-            quote.
+            Enter your hourly or fixed price. For a quote, choose “I’ll agree a
+            price first” above. Enter 0 only if you offer free help.
           </small>
           <label>
             A little about you (optional)
@@ -1861,6 +1975,15 @@ function WorkerSetup() {
   );
 }
 function weeklyWindows(form: HTMLFormElement) {
+  const days = [
+    "Monday",
+    "Tuesday",
+    "Wednesday",
+    "Thursday",
+    "Friday",
+    "Saturday",
+    "Sunday",
+  ];
   return Array.from({ length: 7 }, (_, dayOfWeek) => {
     const startTime = (
       form.elements.namedItem(`schedule-start-${dayOfWeek}`) as HTMLInputElement
@@ -1868,6 +1991,14 @@ function weeklyWindows(form: HTMLFormElement) {
     const endTime = (
       form.elements.namedItem(`schedule-end-${dayOfWeek}`) as HTMLInputElement
     ).value;
+    if (!!startTime !== !!endTime)
+      throw new Error(
+        `Add both a start and end time for ${days[dayOfWeek]}, or clear both to take that day off.`,
+      );
+    if (startTime && endTime && startTime >= endTime)
+      throw new Error(
+        `${days[dayOfWeek]} needs an end time after its start time.`,
+      );
     return startTime && endTime
       ? { dayOfWeek: (dayOfWeek + 1) % 7, startTime, endTime }
       : null;
@@ -2773,7 +2904,11 @@ export default function App() {
     setCsrf(s?.csrfToken || "");
   }, [s?.csrfToken]);
   return (
-    <Shell user={s?.user || null} demoEnabled={!!s?.demoEnabled} stagingDemoEnabled={!!s?.stagingDemoEnabled}>
+    <Shell
+      user={s?.user || null}
+      demoEnabled={!!s?.demoEnabled}
+      stagingDemoEnabled={!!s?.stagingDemoEnabled}
+    >
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/services" element={<Services />} />
