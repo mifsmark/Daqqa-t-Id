@@ -19,3 +19,10 @@ For deletion, acknowledge the request, suspend the account if requested, then ha
 ## First users
 
 Use the assisted onboarding and recruitment checklist in LAUNCH-AND-GROWTH.md. Start with services/localities that actually have eligible workers. Help workers set their own password and review their own profile; do not collect passwords or post on their behalf without consent. Public profile links and WhatsApp share buttons open a user-controlled composer and never send automatic invitations.
+
+
+## Booking alerts and optional support
+
+During helper onboarding, enable phone alerts only with the helper's explicit device permission and run a test. The inbox remains the fallback. Check actual new-request/confirmation receipt on the helper phone; a queued test is not proof of delivery. See [NOTIFICATIONS.md](NOTIFICATIONS.md). Privacy exports/deletions must account for owned notifications and device subscriptions, without exposing push endpoints or keys in public case records.
+
+Optional platform support uses an owner-configured Stripe-hosted checkout in Production only; staging always disables it. Reconcile actual money in Stripe, manage refunds there, and never treat the app's simulated booking ledger or a checkout return as income. See [MONETIZATION.md](MONETIZATION.md).

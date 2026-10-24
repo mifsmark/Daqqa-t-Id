@@ -2,7 +2,7 @@
 
 Open [Daqqa t’Id staging](https://daqqa-t-id-staging.daqqatid-75d7e2e4.workers.dev). This tests the actual app using fictional jobs and simulated payments. It is not the real-service launch. Use test profile names, fictional addresses and harmless images; do not upload identity documents or arrange real work here.
 
-The updated demo is published as version `6ecaf39d-1f3f-4703-83d2-71f1518bcee3` (source tag `cf17bdd`). Both complete CI suites passed, including all five browser journeys on each backend. The latest automated results and publication status are in [PROGRESS.md](PROGRESS.md). A successful deployment or local test does not establish that the public site works. Record the manual results below as you test; the public HTTPS smoke is still pending the development workspace's network access.
+The current release, automated results and publication status are recorded in [PROGRESS.md](PROGRESS.md). Use the steps below to record your own phone and usability results; automated browser tests cannot establish that a real phone displayed an alert.
 
 ## Two people, or two browser sessions
 
@@ -21,12 +21,14 @@ Check two useful corrections: Continue should explain a missing service/mode; an
 
 1. In the customer browser, open the helper's profile and choose **Request this helper**. If signed out, use the login/signup link and check that the same helper is still selected afterwards.
 2. Choose **Cleaning / Get it done**, title **Test cleaning request**, locality **Mosta**, a fictional address and **tomorrow at 10:00 Malta time** for one hour. Send the request. No card details are needed.
-3. Helper: open the request in **My space** and choose **Accept request**.
-4. Customer: reload the booking and choose **Confirm booking**. Check the displayed €20 simulated amount and the status **Confirmed**.
+3. Helper: open the **bell** and check for the new request. Open it from the notification and choose **Accept request**. Customer: check that your bell shows the acceptance update.
+4. Customer: choose **Confirm booking**. Check the displayed €20 simulated amount and the status **Confirmed**. Helper: check for the confirmation in your bell.
 5. Add a harmless booking photo. The assigned helper should see it. Open its image URL in a signed-out browser: it should be unavailable. Photos are accepted after confirmation.
 6. Helper: reload, choose **Start service**, then **Mark complete**. Customer: reload, submit a test rating/review and check that it appears once. The booking should show **Completed**.
 
-Reload between the two people's actions if needed. The pilot does not currently send configured email/SMS alerts; a coordinator must explain when participants should check their dashboard. Password-reset email is unconfigured and should report that honestly.
+The bell refreshes while the app is visible and when you return to it. To test phone alerts on each account, open the bell, choose **Turn on phone alerts**, allow the browser prompt and choose **Send a test alert**. Check receipt on the actual phone; a queued response alone is insufficient. On iPhone/iPad, add the app to the Home Screen and open that icon first. See [NOTIFICATIONS.md](NOTIFICATIONS.md). Email/SMS alerts and password-reset email remain unconfigured.
+
+Open **Support the service** in the footer. The staging demo must explain that optional payments are not connected and must not present a real checkout. Browsing and booking must remain usable. Production setup is in [MONETIZATION.md](MONETIZATION.md).
 
 ## Record what happened
 
@@ -38,6 +40,9 @@ These are expected outcomes, not completed manual results. Mark the result after
 | Missing service or incomplete time pair | Clear feedback before progressing/saving | Not run |
 | Guest returns after login/signup | Same selected helper; external return links rejected | Not run |
 | Request → accept → confirm → start → complete | Correct status and simulated amount at each step | Not run |
+| Helper new-request/confirmation and customer status alerts | Correct recipient; bell opens the booking | Not run |
+| Phone opt-in and test alert | No permission prompt before action; actual phone receipt checked | Not run |
+| Optional support | Staging cannot charge; service remains usable | Not run |
 | Booking photo | Participant can read; signed-out browser cannot | Not run |
 | Review | One review on the completed booking | Not run |
 | Profile sharing | Valid profile/WhatsApp link; cancelling native share is harmless | Not run |

@@ -23,9 +23,11 @@ import {
   CheckCircle2,
   Plus,
   CalendarDays,
+  Bell,
 } from "lucide-react";
 import { api, Category, Session, setCsrf, Worker, json, User } from "./api";
 import { MediaPanel } from "./MediaPanel";
+import { OptionalSupportCard, SupportPage } from "./OptionalSupport";
 const modes = [
   ["ForMe", "Get it done"],
   ["WithMe", "Work side by side"],
@@ -118,6 +120,7 @@ function Header({ user }: { user: User | null }) {
         <IconMark />
         <span>daqqa t’Id</span>
       </Link>
+      {user && <NotificationCenter user={user} />}
       <button
         className="mobile-menu"
         aria-label="Open menu"
@@ -174,6 +177,194 @@ function Header({ user }: { user: User | null }) {
     </header>
   );
 }
+
+type NotificationItem = {
+  id: string;
+  bookingId: string | null;
+  kind: string;
+  title: string;
+  message: string;
+  url: string;
+  createdAt: string;
+  readAt: string | null;
+};
+type NotificationList = { items: NotificationItem[]; unreadCount: number };
+type PushConfig = { enabled: boolean; publicKey: string | null; subscribed: boolean };
+const notificationKey = (userId: string) => ["notifications", userId] as const;
+const pushConfigKey = (userId: string) => ["push-config", userId] as const;
+
+export function applicationNotificationUrl(url: string) {
+  return url === "/dashboard" || /^\/bookings\/[0-9a-f-]{36}$/i.test(url)
+    ? url
+    : "/dashboard";
+}
+export function decodeVapidKey(value: string) {
+  const padded = value.replace(/-/g, "+").replace(/_/g, "/");
+  const raw = atob(padded + "=".repeat((4 - (padded.length % 4)) % 4));
+  return Uint8Array.from(raw, (char) => char.charCodeAt(0));
+}
+function sameApplicationKey(current: ArrayBuffer | null, expected: Uint8Array) {
+  if (!current) return false;
+  const bytes = new Uint8Array(current);
+  return bytes.length === expected.length && bytes.every((byte, index) => byte === expected[index]);
+}
+function serviceWorkerReadyWithin(timeoutMs: number) {
+  return new Promise<ServiceWorkerRegistration>((resolve, reject) => {
+    const timer = window.setTimeout(() => reject(new Error("This device is taking too long to prepare alerts. Please try again.")), timeoutMs);
+    navigator.serviceWorker.ready.then(
+      (registration) => { window.clearTimeout(timer); resolve(registration); },
+      (error) => { window.clearTimeout(timer); reject(error); },
+    );
+  });
+}
+export function NotificationCenter({ user }: { user: User }) {
+  const [expanded, setExpanded] = useState(false);
+  const [notice, setNotice] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [browserSubscribed, setBrowserSubscribed] = useState(false);
+  const client = useQueryClient();
+  const key = notificationKey(user.id);
+  const notificationsQuery = useQuery({
+    queryKey: key,
+    queryFn: () => api<NotificationList>("/api/notifications"),
+    refetchInterval: () => (document.visibilityState === "visible" ? 30_000 : false),
+    refetchIntervalInBackground: false,
+    refetchOnWindowFocus: true,
+  });
+  const { data } = notificationsQuery;
+  const configQuery = useQuery({
+    queryKey: pushConfigKey(user.id),
+    queryFn: () => api<PushConfig>("/api/notifications/push-config"),
+    enabled: expanded,
+    refetchOnWindowFocus: true,
+  });
+  const markRead = async (item: NotificationItem) => {
+    if (!item.readAt) {
+      setNotice("");
+      try {
+        await api(`/api/notifications/${encodeURIComponent(item.id)}/read`, json({}));
+        await client.invalidateQueries({ queryKey: key });
+      } catch (error) {
+        setNotice(error instanceof Error ? error.message : "This update could not be marked read. Please try again.");
+      }
+    }
+  };
+  const enableAlerts = async () => {
+    setNotice("");
+    setBusy(true);
+    try {
+      if (!("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window)) {
+        setNotice("Phone alerts are not supported by this browser. You can still read updates here.");
+        return;
+      }
+      const permission = await Notification.requestPermission();
+      if (permission !== "granted") {
+        setNotice(permission === "denied"
+          ? "Alerts are blocked. Change notification permission in your browser or phone settings, then try again. You can still read updates here."
+          : "Alerts were not enabled. You can try again here.");
+        return;
+      }
+      const config = await api<PushConfig>("/api/notifications/push-config");
+      if (!config.enabled || !config.publicKey) {
+        setNotice("Phone alerts are not available yet. You can still read updates here.");
+        return;
+      }
+      const registration = await serviceWorkerReadyWithin(8_000);
+      let subscription = await registration.pushManager.getSubscription();
+      const expectedKey = decodeVapidKey(config.publicKey);
+      if (subscription && !sameApplicationKey(subscription.options.applicationServerKey, expectedKey)) {
+        await subscription.unsubscribe();
+        subscription = null;
+      }
+      if (!subscription) subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: expectedKey,
+      });
+      const value = subscription.toJSON();
+      if (!value.endpoint || !value.keys?.p256dh || !value.keys.auth) throw new Error("The browser could not create an alert subscription. Please try again.");
+      await api("/api/notifications/push-subscriptions", json({
+        endpoint: value.endpoint,
+        keys: value.keys,
+      }));
+      await client.invalidateQueries({ queryKey: pushConfigKey(user.id) });
+      setBrowserSubscribed(true);
+      setNotice("Phone alerts are on for this device.");
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : "Phone alerts could not be turned on. Please try again.");
+    } finally {
+      setBusy(false);
+    }
+  };
+  const disableAlerts = async () => {
+    setNotice("");
+    setBusy(true);
+    try {
+      await api("/api/notifications/push-subscriptions", { method: "DELETE" });
+      const registration = "serviceWorker" in navigator ? await navigator.serviceWorker.ready : null;
+      const subscription = registration ? await registration.pushManager.getSubscription() : null;
+      if (subscription) await subscription.unsubscribe();
+      setBrowserSubscribed(false);
+      await client.invalidateQueries({ queryKey: pushConfigKey(user.id) });
+      setNotice("Phone alerts are off for this device.");
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : "Alerts could not be turned off. Please try again.");
+    } finally {
+      setBusy(false);
+    }
+  };
+  const sendTest = async () => {
+    setNotice("");
+    setBusy(true);
+    try {
+      await api("/api/notifications/test", json({}));
+      setNotice("Test alert queued. Delivery can take a short time.");
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : "Test alert could not be queued.");
+    } finally {
+      setBusy(false);
+    }
+  };
+  const markAllRead = async () => {
+    setNotice("");
+    setBusy(true);
+    try {
+      await api("/api/notifications/read-all", json({}));
+      await client.invalidateQueries({ queryKey: key });
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : "Updates could not be marked read. Please try again.");
+    } finally {
+      setBusy(false);
+    }
+  };
+  const config = configQuery.data;
+  const supported = "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
+  const isAppleMobile = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  const isAppleHomeScreen = isAppleMobile && (navigator as Navigator & { standalone?: boolean }).standalone !== true;
+  useEffect(() => {
+    let active = true;
+    setBrowserSubscribed(false);
+    if (!expanded || !config?.subscribed || !supported || Notification.permission !== "granted") return;
+    void serviceWorkerReadyWithin(8_000).then(async (registration) => {
+      const subscription = await registration.pushManager.getSubscription();
+      const currentKey = config.publicKey ? decodeVapidKey(config.publicKey) : new Uint8Array();
+      if (active) setBrowserSubscribed(!!subscription && sameApplicationKey(subscription.options.applicationServerKey, currentKey));
+    }).catch(() => { if (active) setBrowserSubscribed(false); });
+    return () => { active = false; };
+  }, [expanded, config?.subscribed, config?.publicKey, supported]);
+  return (
+    <div className="notification-center">
+      <button className="notification-bell" aria-label={`Notifications${data?.unreadCount ? `, ${data.unreadCount} unread` : ""}`} aria-expanded={expanded} onClick={() => { setExpanded(!expanded); setNotice(""); }}>
+        <Bell size={19} />
+        {!!data?.unreadCount && <span className="notification-count" aria-hidden="true">{data.unreadCount > 99 ? "99+" : data.unreadCount}</span>}
+      </button>
+      {expanded && <section className="notification-panel" role="region" aria-labelledby="notification-heading">
+        <div className="notification-heading"><h2 id="notification-heading">Updates</h2>{!!data?.unreadCount && <button className="link-button" disabled={busy} onClick={() => void markAllRead()}>Mark all read</button>}</div>
+        {notificationsQuery.isPending ? <p className="notification-empty" role="status">Loading updates…</p> : notificationsQuery.isError ? <div className="notification-error" role="alert"><p>Updates could not be loaded.</p><button className="link-button" onClick={() => void notificationsQuery.refetch()}>Try again</button></div> : !data?.items.length ? <p className="notification-empty">No updates yet. We’ll show booking news here.</p> : <ul className="notification-list">{data.items.map(item => <li key={item.id} className={item.readAt ? "notification-item" : "notification-item unread"}><Link to={applicationNotificationUrl(item.url)} onClick={() => { void markRead(item); setExpanded(false); }}>{!item.readAt && <span className="notification-dot" aria-label="Unread" />}<span><strong>{item.title}</strong><span>{item.message}</span><small>{formatMaltaDateTime(item.createdAt)}</small></span></Link></li>)}</ul>}
+        <div className="notification-alerts"><h3>Phone alerts</h3>{isAppleHomeScreen ? <p>On iPhone or iPad, first use Share, then Add to Home Screen. Open Daqqa t’Id from that new icon to turn on phone alerts.</p> : configQuery.isLoading ? <p>Checking this device…</p> : config?.subscribed && browserSubscribed ? <><p>Phone alerts are on for this device.</p><button className="button button-outline button-small" disabled={busy} onClick={() => void disableAlerts()}>Turn off phone alerts</button><button className="link-button" disabled={busy} onClick={() => void sendTest()}>Send a test alert</button></> : config?.enabled && supported ? <><p>Get a phone alert when there is news about your bookings.</p><button className="button button-small" disabled={busy} onClick={() => void enableAlerts()}>Turn on phone alerts</button></> : <p>{!supported ? "Phone alerts are not supported here. You can still read updates here." : "Phone alerts are not available yet. You can still read updates here."}</p>}{notice && <p role="status" aria-live="polite" className="notification-status">{notice}</p>}</div>
+      </section>}
+    </div>
+  );
+}
 function Footer() {
   return (
     <footer className="footer">
@@ -185,6 +376,7 @@ function Footer() {
       <div>
         <Link to="/privacy">Privacy</Link>
         <Link to="/terms">Terms</Link>
+        <Link to="/support">Support the service</Link>
       </div>
       <small>© Daqqa t’Id</small>
     </footer>
@@ -256,8 +448,8 @@ function Hero() {
           <em>you need one.</em>
         </h1>
         <p>
-          Find a local helper, learn something new, or lend your skills. Good
-          things happen when we help each other.
+          Find local help in Malta and Gozo, get a task done together, or learn
+          a practical skill. Choose the person and way of working that suit you.
         </p>
         <form
           className="searchbox"
@@ -450,8 +642,8 @@ function Services() {
       <span className="eyebrow">SERVICES AROUND YOU</span>
       <h1>Find the right kind of help.</h1>
       <p className="intro">
-        Browse what people offer in Malta and Gozo. Availability and pricing
-        come from each helper’s profile.
+        Find local skills for your home, everyday tasks and practical lessons
+        across Malta and Gozo.
       </p>
       <label className="service-search">
         Search services
@@ -498,6 +690,7 @@ function Services() {
           )}
         </div>
       )}
+      <p className="section-note"><small>Prices and availability come from each helper’s profile. A booking needs the helper’s acceptance and your confirmation.</small></p>
     </section>
   );
 }
@@ -1087,8 +1280,8 @@ function Join() {
       <span className="eyebrow">SHARE WHAT YOU KNOW</span>
       <h1>Become a local helper.</h1>
       <p className="intro">
-        Start small. Tell us what you can help with, where you work, and when
-        you’re available. You can improve your profile as you go.
+        Share your skills with people nearby. Choose your services, prices and
+        hours, then review the requests that suit you.
       </p>
       <div className="join-steps">
         <div>
@@ -1104,7 +1297,7 @@ function Join() {
         <div>
           <b>3</b>
           <h3>Set your availability</h3>
-          <p>Switch “Available now” on or set your usual hours.</p>
+          <p>Set your usual hours, then switch “Available now” on when you can help.</p>
         </div>
       </div>
       <div className="join-cta">
@@ -1117,7 +1310,7 @@ function Join() {
             Create a helper account <ArrowRight />
           </Link>
         )}
-        <p>Regulated work may need approval before customers can request it.</p>
+        <small>Regulated services require approval before customers can request them.</small>
       </div>
     </section>
   );
@@ -2368,6 +2561,7 @@ function BookingDetail() {
         />
       )}
       {b.review && <p className="notice">Thanks for sharing your review.</p>}
+      {customer && b.status === "Completed" && <OptionalSupportCard />}
       {notice && (
         <p role="alert" className="form-error">
           {notice}
@@ -2855,6 +3049,7 @@ function ServiceDetail() {
           </Link>
         </div>
       )}
+      <p className="section-note"><small>{c.requiresVerification ? "This service requires an approved provider. " : ""}Working together and lessons are offered only for eligible tasks. Check the helper’s scope, price and availability before confirming.</small></p>
     </section>
   );
 }
@@ -2910,6 +3105,7 @@ export default function App() {
       stagingDemoEnabled={!!s?.stagingDemoEnabled}
     >
       <Routes>
+        <Route path="/support" element={<SupportPage />} />
         <Route path="/" element={<Home />} />
         <Route path="/services" element={<Services />} />
         <Route path="/services/:slug" element={<ServiceDetail />} />

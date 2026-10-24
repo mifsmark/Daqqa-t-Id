@@ -1,10 +1,13 @@
 import { beforeAll } from 'vitest';
 import { env } from 'cloudflare:test';
 import schema from '../migrations/0001_marketplace.sql?raw';
+import notifications from '../migrations/0002_booking_notifications.sql?raw';
 
 beforeAll(async () => {
   const applied = await env.DB.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'users'").first();
   if (!applied) await env.DB.batch(splitSql(schema).filter(query => !/^PRAGMA\s+foreign_keys/i.test(query)).map(query => env.DB.prepare(query)));
+  const notificationsApplied = await env.DB.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='notifications'").first();
+  if (!notificationsApplied) await env.DB.batch(splitSql(notifications).filter(query => !/^PRAGMA\s+foreign_keys/i.test(query)).map(query => env.DB.prepare(query)));
 });
 
 function splitSql(source: string): string[] {

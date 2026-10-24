@@ -2,9 +2,21 @@
 
 ## Status
 
-The original .NET/SQL Server MVP remains available on `feat/marketplace-mvp`, with an additional Cloudflare Workers/D1/KV backend using the same React app and API contract. Cloudflare staging has been published at **https://daqqa-t-id-staging.daqqatid-75d7e2e4.workers.dev**. Public functional verification is pending this cloud workspace's new-hostname network allowance; deployment success alone is not a verified user journey. No Azure resources, paid Cloudflare subscription or production payments have been created. PR #1 remains open and unmerged.
+The original .NET/SQL Server MVP remains available on `feat/marketplace-mvp`, with an additional Cloudflare Workers/D1/KV backend using the same React app and API contract. Cloudflare staging has been published at **https://daqqa-t-id-staging.daqqatid-75d7e2e4.workers.dev**. The public health endpoint now responds from this workspace; the notification release's public lifecycle smoke is pending its deployment. Deployment success alone is not a verified user journey. No Azure resources, paid Cloudflare subscription or production payments have been created. PR #1 remains open and unmerged.
 
 Lower-cost GPT-6 Luna agents implemented the backend, frontend, infrastructure and tests under the primary agent's architectural, security and integration review. Initial network blocks on SQL downloads and GitHub API access were resolved after the saved network configuration became effective; both operations now work.
+
+## Notifications, clearer copy and optional support — 24 October 2026
+
+Implemented customer/helper booking inboxes and optional standard Web Push on both backends. The helper receives new requests, customer confirmations and reviews; customers receive quotes, acceptance, start and completion updates; cancellation/expiry events notify both. Events commit with booking/history/review changes, deduplicate retries and cannot be read or changed by another recipient. The bell works on mobile outside the collapsed menu, shows unread updates, opens bookings and supports mark-all-read. Phone permission is requested only after the user chooses to enable it; iPhone Home Screen guidance and a queued test alert are included.
+
+The reviewed additive migrations are D1 `0002_booking_notifications.sql` and EF/SQL Server `20261024132800_AddNotifications`. Session-bound device registration, valid browser-provider HTTPS endpoints, real P-256 key checks, device/test limits, revocation, leases, conditional acknowledgement, retries, 24-hour expiry and stale-status suppression are covered by regression tests. Provider redirects are disabled; dead subscriptions are removed. No paid notification service is used. Real phone OS display has not been verified and requires a device opt-in. See [NOTIFICATIONS.md](NOTIFICATIONS.md).
+
+The actual .NET browser run found that projecting `Guid.ToString()` through SQL Server returned uppercase booking IDs. Inbox events existed but the browser could not match them to the canonical lowercase booking ID. The API now serializes nullable GUIDs directly, and real SQL lifecycle assertions require the exact wire format. SQL test setup now applies reviewed migrations to fresh disposable catalogs; retained development databases are not reset.
+
+Public home/service/join copy leads with useful local help, working together and learning practical skills. Eligibility/verification notes appear briefly at relevant section ends. Regulated-service enforcement and visible demo labels remain in place. Optional, one-off platform support is available through a validated owner-configured Stripe Payment Link **in Production only**; it changes no access, ranking, priority or booking price. The footer and post-completion card explain the choice. Staging always disables checkout. No Stripe account/link is connected, no money was received and checkout clicks/returns are never treated as payment. See [MONETIZATION.md](MONETIZATION.md).
+
+Verified locally: frontend type/lint/build and **13 tests**; Worker type checking and **36 workerd/D1 tests**; .NET Release build with **zero warnings/errors**, **28 unit tests** and **22 real SQL Server integration tests**; all **five browser journeys on each backend**. The notification browser journey checks actual recipient inboxes, ownership/read state and navigation; the mobile setup journey checks the bell at 375px. Full hosted CI and the new staging deployment are pending at this point; earlier green CI/version records below refer to prior source revisions.
 
 ## Manual-test preparation — 24 October 2026
 
@@ -95,7 +107,7 @@ Run browser checks from `tests/e2e` with `E2E_BASE_URL` pointing to the running 
 
 ## Remaining launch actions and limits
 
-- Cloudflare public verification needs the saved new-hostname network change to take effect: review/save it in environment settings and publish the environment. The owner’s publication attempt failed with settings saved; Retry/Report issue is a platform step. Then run the actual HTTPS staging booking/photo/review/payment smoke; do not treat local tests or publication as proof of remote auth/free-CPU behavior. An owner administrator still needs normal account registration followed by private promotion.
+- Run the new public HTTPS staging booking/notification/photo/review smoke after this release passes CI and deploys. The public health endpoint now responds. An owner administrator still needs normal account registration followed by private promotion.
 - Azure deployment needs a separate personal subscription, a reviewed free-only configuration, OIDC variables, SQL identities/firewall permissions and protected demo-admin secrets. Never use Kingmakers work resources. The default Bicep template is billable and must not be run for this free-only request. See STAGING-DEMO.md and DEPLOY-AZURE.md. No Azure resources were created; Azure SQL-backed post-deployment smoke remains unrun until deployment is authorized and configured.
 - Payments are simulated and no card details are collected. Legal/privacy text is a review placeholder. This is a controlled demo/pilot foundation, not a claim of live payment or legal readiness.
 - SMTP and the Azure Blob adapter compile, but live SMTP delivery and Azure managed-identity Blob access have not been exercised against configured cloud accounts. Local media upload/privacy behavior is verified.
@@ -108,4 +120,4 @@ Run browser checks from `tests/e2e` with `E2E_BASE_URL` pointing to the running 
 
 1. Complete the public Cloudflare staging smoke after the saved network allowance becomes effective, then enable owner administration privately after account registration. Both source CI workflows have passed. Do not merge or provision Azure resources; the retained Azure path is optional future work with separate personal-account/free-tier review.
 2. Complete legal/operational review, configure support/mail, and recruit a small verified worker cohort with assisted onboarding.
-3. Run a locality-focused pilot; measure request-to-confirmation conversion and worker response, then prioritize notifications and the largest observed usability issue.
+3. Run a locality-focused pilot; measure request-to-confirmation conversion and worker response, then prioritize the largest observed usability issue and measure optional support payments separately from simulated bookings.

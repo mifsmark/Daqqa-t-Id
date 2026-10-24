@@ -114,6 +114,10 @@ public sealed class MarketplaceLifecycleTests : IAsyncLifetime
         var first = await create.Content.ReadFromJsonAsync<JsonElement>();
         var bookingId = first.GetProperty("id").GetGuid();
         Assert.Equal("Requested", first.GetProperty("status").GetString());
+        var requestedInbox = await worker.GetFromJsonAsync<JsonElement>("/api/notifications");
+        Assert.Contains(requestedInbox.GetProperty("items").EnumerateArray(), item => string.Equals(item.GetProperty("bookingId").GetString(), bookingId.ToString(), StringComparison.Ordinal) && item.GetProperty("kind").GetString() == "Requested");
+        var customerInbox = await customer.GetFromJsonAsync<JsonElement>("/api/notifications");
+        Assert.DoesNotContain(customerInbox.GetProperty("items").EnumerateArray(), item => string.Equals(item.GetProperty("bookingId").GetString(), bookingId.ToString(), StringComparison.Ordinal));
 
         var unverifiedPlumber = await customer.PostAsJsonAsync("/api/bookings", new
         {
@@ -192,6 +196,11 @@ public sealed class MarketplaceLifecycleTests : IAsyncLifetime
 
         var retry = await customer.PostAsJsonAsync("/api/bookings", request);
         Assert.Equal(bookingId, (await retry.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetGuid());
+        using (var scope = factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            Assert.Equal(1, await db.Notifications.CountAsync(x => x.BookingId == bookingId && x.Kind == "Requested"));
+        }
         Assert.Equal(HttpStatusCode.Forbidden, (await otherCustomer.GetAsync($"/api/bookings/{bookingId}")).StatusCode);
 
         var workerView = await worker.GetAsync($"/api/bookings/{bookingId}");
@@ -201,6 +210,8 @@ public sealed class MarketplaceLifecycleTests : IAsyncLifetime
         var quote = await Action(worker, bookingId, "quote", 42m);
         Assert.Equal("Quoted", quote.GetProperty("status").GetString());
         Assert.Equal(42m, quote.GetProperty("quoteAmount").GetDecimal());
+        var quotedInbox = await customer.GetFromJsonAsync<JsonElement>("/api/notifications");
+        Assert.Contains(quotedInbox.GetProperty("items").EnumerateArray(), item => string.Equals(item.GetProperty("bookingId").GetString(), bookingId.ToString(), StringComparison.Ordinal) && item.GetProperty("kind").GetString() == "Quoted");
         using (var prematureImage = ImageForm("booking", bookingId, PngHeader, "repair.png"))
             Assert.Equal(HttpStatusCode.Conflict, (await customer.PostAsync("/api/media", prematureImage)).StatusCode);
         var confirmed = await Action(customer, bookingId, "confirm");
@@ -222,6 +233,8 @@ public sealed class MarketplaceLifecycleTests : IAsyncLifetime
 
         var review = await customer.PostAsJsonAsync($"/api/bookings/{bookingId}/review", new { rating = 5, comment = "Clear and helpful." });
         Assert.Equal(HttpStatusCode.OK, review.StatusCode);
+        var reviewInbox = await worker.GetFromJsonAsync<JsonElement>("/api/notifications");
+        Assert.Contains(reviewInbox.GetProperty("items").EnumerateArray(), item => string.Equals(item.GetProperty("bookingId").GetString(), bookingId.ToString(), StringComparison.Ordinal) && item.GetProperty("kind").GetString() == "Review");
         Assert.Equal(HttpStatusCode.Conflict, (await customer.PostAsJsonAsync($"/api/bookings/{bookingId}/review", new { rating = 5, comment = "Duplicate" })).StatusCode);
 
         using (var scope = factory.Services.CreateScope())

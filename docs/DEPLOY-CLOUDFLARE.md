@@ -91,3 +91,10 @@ For an account-level API token used for worker deploys, grant the minimum Cloudf
 ## Free tier operational limits
 
 KV is eventually consistent and has a daily write limit, so keep images immutable after upload and use generated keys. The Worker should reject oversized uploads before writing to KV, and media metadata should live in D1 only if the schema/API explicitly calls for it. Do not use KV for booking state, sessions, or other records that need transactional consistency. D1 provides SQLite semantics but has per-query and database-size limits; keep queries indexed and transactions short. Cloudflare documents the current service quotas and any overage behavior at the pricing links above; re-check before changing limits or traffic assumptions.
+
+
+## Booking notification rollout
+
+Apply additive reviewed migration `0002_booking_notifications.sql` before deploying this feature. It adds recipient inboxes, session-bound subscriptions, a leased delivery outbox and atomic booking/review notification triggers. Do not reset or backfill fictional events into real accounts. Configure the three VAPID secrets described in [NOTIFICATIONS.md](NOTIFICATIONS.md), preserving the key pair between releases. Staging has a one-minute retry cron plus immediate delivery scheduling. Production must explicitly configure its own retry cron before a real launch; secrets and environment triggers are not inherited automatically. No paid queue or notification subscription is required.
+
+Run the HTTPS staging smoke after publishing. It now checks the intended recipients for each booking event and review, and verifies that real support checkout is disabled. Actual phone receipt still requires an opted-in device. Optional platform support is a separate Production-only Stripe Payment Link setting, documented in [MONETIZATION.md](MONETIZATION.md); never configure real charging in the fictional demo.

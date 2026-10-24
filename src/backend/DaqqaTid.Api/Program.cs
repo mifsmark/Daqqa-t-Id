@@ -10,6 +10,7 @@ using Microsoft.AspNetCore.RateLimiting;
 using DaqqaTid.Application;
 using DaqqaTid.Domain;
 using DaqqaTid.Infrastructure;
+using DaqqaTid.Api;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
@@ -52,6 +53,9 @@ builder.Services.AddAntiforgery(o =>
 });
 builder.Services.AddScoped<IMarketplaceService, MarketplaceService>();
 builder.Services.AddScoped<ISimulatedPaymentLedger, SimulatedPaymentLedger>();
+builder.Services.AddSingleton(_ => new Lib.Net.Http.WebPush.PushServiceClient(new HttpClient(new HttpClientHandler { AllowAutoRedirect = false }) { Timeout = TimeSpan.FromSeconds(10) }));
+builder.Services.AddSingleton<NotificationPushSender>();
+builder.Services.AddHostedService<NotificationDeliveryWorker>();
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddRateLimiter(o =>
 {
@@ -147,7 +151,10 @@ api.AddEndpointFilter(async (context, next) =>
     return errors.Count > 0 ? Results.ValidationProblem(errors) : await next(context);
 });
 api.MapMediaEndpoints();
+api.MapNotifications();
 api.MapPasswordRecovery();
+api.MapGet("/support", (IWebHostEnvironment environment, IConfiguration configuration) =>
+    Results.Ok(SupportPaymentPolicy.Get(environment.EnvironmentName, configuration["SupportPayments:CheckoutUrl"])));
 api.MapGet("/session", async (HttpContext ctx, IConfiguration cfg, UserManager<ApplicationUser> users, SignInManager<ApplicationUser> signIn, IAntiforgery antiforgery) =>
 {
     var token = antiforgery.GetAndStoreTokens(ctx).RequestToken;
@@ -183,7 +190,7 @@ auth.MapPost("/login", async (LoginRequest req, UserManager<ApplicationUser> use
     if (!result.Succeeded) return Results.Unauthorized();
     var roles = await users.GetRolesAsync(user); return Results.Ok(new SessionUser(user.Id, user.Email!, user.DisplayName, roles.FirstOrDefault() ?? "Customer"));
 });
-auth.MapPost("/logout", async (SignInManager<ApplicationUser> signIn) => { await signIn.SignOutAsync(); return Results.NoContent(); });
+auth.MapPost("/logout", async (HttpContext ctx, SignInManager<ApplicationUser> signIn, AppDbContext db) => { if (ctx.Request.Cookies.TryGetValue("DaqqaTid.NotificationDevice", out var token)) { var hash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(token))); if (Guid.TryParse(ctx.User.FindFirstValue(ClaimTypes.NameIdentifier), out var uid)) await db.NotificationDevices.Where(x => x.UserId == uid && x.DeviceTokenHash == hash).ExecuteDeleteAsync(); ctx.Response.Cookies.Delete("DaqqaTid.NotificationDevice", new CookieOptions { Path = "/" }); } await signIn.SignOutAsync(); return Results.NoContent(); });
 auth.MapPost("/demo", async (DemoRequest req, IConfiguration cfg, IWebHostEnvironment env, UserManager<ApplicationUser> users, RoleManager<IdentityRole<Guid>> roles, SignInManager<ApplicationUser> signIn, AppDbContext db, CancellationToken ct) =>
 {
     if (!cfg.GetValue<bool>("Demo:Enabled") || !env.IsDevelopment()) return Results.NotFound();

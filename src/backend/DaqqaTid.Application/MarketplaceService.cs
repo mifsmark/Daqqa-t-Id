@@ -72,7 +72,8 @@ public sealed class MarketplaceService(AppDbContext db, ISimulatedPaymentLedger 
         if (overlaps) throw new InvalidOperationException("Worker is already booked for that time.");
         var price = BookingRules.Price(offering.PricingType, offering.Price ?? worker.HourlyRate, r.DurationMinutes);
         var booking = new Booking { CustomerId = customerId, WorkerId = worker.Id, CategoryId = r.CategoryId, Mode = r.Mode, Summary = r.Summary.Trim(), Description = r.Description.Trim(), Locality = r.Locality.Trim(), PrivateAddress = r.Address.Trim(), StartAt = startAt.ToUniversalTime(), EndAt = end, Status = BookingStatus.Requested, PricingType = offering.PricingType, Amount = offering.PricingType == PricingType.Quote ? null : price, IdempotencyKey = r.IdempotencyKey, RequestFingerprint = fingerprint };
-        booking.History.Add(new BookingHistory { Status = BookingStatus.Requested, At = DateTimeOffset.UtcNow }); db.Bookings.Add(booking);
+        var requested = new BookingHistory { Status = BookingStatus.Requested, At = DateTimeOffset.UtcNow };
+        booking.History.Add(requested); db.Bookings.Add(booking); await AddStatusNotificationsAsync(booking, requested, ct);
         try { await db.SaveChangesAsync(ct); await tx.CommitAsync(ct); }
         catch (DbUpdateException) { await tx.RollbackAsync(ct); var prior = await db.Bookings.Include(x => x.History).SingleOrDefaultAsync(x => x.CustomerId == customerId && x.IdempotencyKey == r.IdempotencyKey, ct); if (prior is not null) { if (prior.RequestFingerprint != fingerprint) throw new InvalidOperationException("Idempotency key was already used for a different booking request."); return prior; } throw; }
         return booking;
@@ -126,7 +127,7 @@ public sealed class MarketplaceService(AppDbContext db, ISimulatedPaymentLedger 
             await using var tx = await db.Database.BeginTransactionAsync(ct);
             var settings = await db.Settings.SingleOrDefaultAsync(x => x.Id == 1, ct); var payment = paymentLedger.CreateCompletedBookingLedger(b, settings?.CommissionPercent ?? 12);
             b.CommissionAmount = payment.CommissionAmount; b.Status = to;
-            AddHistory(b, to);
+            var history = AddHistory(b, to); await AddStatusNotificationsAsync(b, history, ct);
             db.Payments.Add(payment);
             try { await db.SaveChangesAsync(ct); } catch (DbUpdateConcurrencyException ex) { throw new BookingConcurrencyException("Booking changed while this action was being saved. Reload and retry.", ex); }
             await tx.CommitAsync(ct); return b;
@@ -135,17 +136,19 @@ public sealed class MarketplaceService(AppDbContext db, ISimulatedPaymentLedger 
         return b;
     }
     public async Task<Review> ReviewAsync(Guid actorId, Guid bookingId, int rating, string? comment, CancellationToken ct = default)
-    { if (rating is < 1 or > 5) throw new ArgumentOutOfRangeException(nameof(rating)); var b = await db.Bookings.SingleOrDefaultAsync(x => x.Id == bookingId, ct) ?? throw new KeyNotFoundException(); if (b.CustomerId != actorId) throw new UnauthorizedAccessException(); if (b.Status != BookingStatus.Completed) throw new InvalidOperationException("Only completed bookings can be reviewed."); if (await db.Reviews.AnyAsync(x => x.BookingId == bookingId, ct)) throw new InvalidOperationException("Booking already reviewed."); var review = new Review { BookingId = b.Id, CustomerId = actorId, WorkerId = b.WorkerId, Rating = rating, Comment = (comment ?? "").Trim(), CreatedAt = DateTimeOffset.UtcNow }; db.Reviews.Add(review); await db.SaveChangesAsync(ct); return review; }
+    { if (rating is < 1 or > 5) throw new ArgumentOutOfRangeException(nameof(rating)); var b = await db.Bookings.SingleOrDefaultAsync(x => x.Id == bookingId, ct) ?? throw new KeyNotFoundException(); if (b.CustomerId != actorId) throw new UnauthorizedAccessException(); if (b.Status != BookingStatus.Completed) throw new InvalidOperationException("Only completed bookings can be reviewed."); if (await db.Reviews.AnyAsync(x => x.BookingId == bookingId, ct)) throw new InvalidOperationException("Booking already reviewed."); var review = new Review { BookingId = b.Id, CustomerId = actorId, WorkerId = b.WorkerId, Rating = rating, Comment = (comment ?? "").Trim(), CreatedAt = DateTimeOffset.UtcNow }; db.Reviews.Add(review); await AddNotificationAsync(await WorkerUserIdAsync(review.WorkerId, ct), b.Id, "Review", review.Id, "New review", "A customer left a review for your booking.", $"/bookings/{b.Id}", ct); await db.SaveChangesAsync(ct); return review; }
     private async Task EnsureOwner(Guid actor, string role, Booking b, CancellationToken ct) { if (role == RoleNames.Admin) return; if (role == RoleNames.Customer && b.CustomerId == actor) return; if (role == RoleNames.Worker && await db.Workers.AnyAsync(x => x.Id == b.WorkerId && x.UserId == actor, ct)) return; throw new UnauthorizedAccessException(); }
-    private void AddHistory(Booking booking, BookingStatus status)
+    private BookingHistory AddHistory(Booking booking, BookingStatus status)
     {
         var entry = new BookingHistory { BookingId = booking.Id, Status = status, At = DateTimeOffset.UtcNow };
         // Existing bookings are loaded with their history collection. Explicitly mark the
         // new GUID-key row as Added instead of relying on graph state inference from Add().
         db.BookingHistory.Add(entry);
         booking.History.Add(entry);
+        // Notification/outbox records are added in the same SaveChanges transaction.
+        return entry;
     }
-    private async Task SaveTransition(Booking b, BookingStatus to, CancellationToken ct) { b.Status = to; AddHistory(b, to); try { await db.SaveChangesAsync(ct); } catch (DbUpdateConcurrencyException ex) { throw new BookingConcurrencyException("Booking changed while this action was being saved. Reload and retry.", ex); } }
+    private async Task SaveTransition(Booking b, BookingStatus to, CancellationToken ct) { b.Status = to; var history = AddHistory(b, to); await AddStatusNotificationsAsync(b, history, ct); try { await db.SaveChangesAsync(ct); } catch (DbUpdateConcurrencyException ex) { throw new BookingConcurrencyException("Booking changed while this action was being saved. Reload and retry.", ex); } }
     private async Task EnsureBookingStillValidAsync(Booking b, CancellationToken ct)
     {
         if (b.StartAt <= clock.GetUtcNow()) throw new InvalidOperationException("Booking start time has passed.");
@@ -159,6 +162,39 @@ public sealed class MarketplaceService(AppDbContext db, ISimulatedPaymentLedger 
         if (origin is null || destination is null || WorkerMatching.DistanceKm(origin.Location.Y, origin.Location.X, destination.Location.Y, destination.Location.X) > worker.RadiusKm) throw new InvalidOperationException("Worker no longer serves this locality.");
     }
     private bool IsSqlServer() => db.Database.ProviderName?.Contains("SqlServer", StringComparison.OrdinalIgnoreCase) == true;
+    private async Task AddStatusNotificationsAsync(Booking booking, BookingHistory history, CancellationToken ct)
+    {
+        var status = history.Status.ToString();
+        var recipients = status switch
+        {
+            "Requested" or "Confirmed" => new[] { WorkerUserId(booking.WorkerId) },
+            "Quoted" or "WorkerAccepted" or "InProgress" or "Completed" => new[] { booking.CustomerId },
+            "Cancelled" or "Expired" => new[] { booking.CustomerId, WorkerUserId(booking.WorkerId) },
+            _ => Array.Empty<Guid>()
+        };
+        var generic = status switch
+        {
+            "Requested" => "You have a new service request.",
+            "Quoted" => "The worker sent a quote.",
+            "WorkerAccepted" => "The worker accepted your request.",
+            "Confirmed" => "The customer confirmed the booking.",
+            "InProgress" => "Your booking has started.",
+            "Completed" => "Your booking is complete.",
+            "Cancelled" => "A booking was cancelled.",
+            "Expired" => "A booking expired.",
+            _ => "Booking updated."
+        };
+        foreach (var recipient in recipients) await AddNotificationAsync(recipient, booking.Id, status, history.Id, "Booking update", generic, $"/bookings/{booking.Id}", ct);
+    }
+    private Guid WorkerUserId(Guid workerId) => db.Workers.Where(x => x.Id == workerId).Select(x => x.UserId).Single();
+    private Task<Guid> WorkerUserIdAsync(Guid workerId, CancellationToken ct) => db.Workers.Where(x => x.Id == workerId).Select(x => x.UserId).SingleAsync(ct);
+    private async Task AddNotificationAsync(Guid recipient, Guid bookingId, string kind, Guid sourceId, string title, string message, string url, CancellationToken ct)
+    {
+        var item = new UserNotification { RecipientId = recipient, BookingId = bookingId, SourceType = kind == "Review" ? "Review" : "BookingHistory", SourceId = sourceId, Kind = kind, Title = title, Message = message, Url = url, CreatedAt = clock.GetUtcNow() };
+        db.Notifications.Add(item);
+        foreach (var device in await db.NotificationDevices.Where(x => x.UserId == recipient && x.ExpiresAt > clock.GetUtcNow()).ToListAsync(ct))
+            db.NotificationOutbox.Add(new NotificationOutbox { NotificationId = item.Id, DeviceId = device.Id, DueAt = item.CreatedAt });
+    }
     private static string RequestFingerprint(CreateBookingRequest r)
     {
         var value = string.Join("\n", r.WorkerId, r.CategoryId, r.Mode, r.Summary.Trim(), r.Description.Trim(), r.Address.Trim(), r.Locality.Trim(), r.StartAt.ToUniversalTime().ToString("O"), r.DurationMinutes, r.IsAsap);

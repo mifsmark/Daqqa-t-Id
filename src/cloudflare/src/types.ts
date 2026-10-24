@@ -7,9 +7,14 @@ export interface Env {
   ENVIRONMENT?: 'development' | 'staging' | 'production';
   STAGING_DEMO_ENABLED?: string;
   STAGING_DEMO_DATABASE_NAME?: string;
+  SUPPORT_CHECKOUT_URL?: string;
   MAIL_API_TOKEN?: string;
   MAIL_FROM?: string;
+  VAPID_SERVER_PUBLIC_KEY?: string;
+  VAPID_SERVER_PRIVATE_KEY?: string;
+  VAPID_SUBJECT?: string;
 }
+export interface ExecutionContext { waitUntil(promise: Promise<unknown>): void; }
 export interface Actor {
   id: string;
   email: string;

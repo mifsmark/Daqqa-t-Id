@@ -17,16 +17,16 @@ export async function handleSeo(c: Context): Promise<Response | undefined> {
   if (path.startsWith('/api/')) return undefined;
   if (path === '/') return renderPage(c, {
     title: 'Daqqa t’Id | Find local help in Malta & Gozo',
-    description: 'Find local help. Get things done. Browse local services, request a clear price, or join as a worker in Malta and Gozo.',
+    description: 'Find local help, work together on everyday tasks, or learn practical skills with people in Malta and Gozo.',
     canonicalPath: '/',
-    body: '<main><h1>Find local help. Get things done.</h1><p>Daqqa t’Id connects people with local service workers in Malta and Gozo.</p><p>Book help, work alongside a professional on eligible tasks, or learn a practical skill.</p><a href="/services">Explore services</a> <a href="/join">Join as a worker</a></main>',
+    body: '<main><h1>Find local help. Get things done.</h1><p>Connect with people in Malta and Gozo for the help you need around home and everyday life.</p><p>Book a service, work together on a task, or learn a practical skill from someone nearby.</p><a href="/services">Explore services</a> <a href="/join">Offer your skills</a></main>',
     schema: { '@context': 'https://schema.org', '@type': 'WebSite', name: 'Daqqa t’Id', url: origin(c), inLanguage: 'en-MT' },
   });
   if (path === '/join') return renderPage(c, {
     title: 'Find local customers for your skills | Daqqa t’Id',
-    description: 'Join as a service worker in Malta and Gozo. Set your services, area and availability, review requests, and agree a price before starting.',
+    description: 'Share your skills, find local customers, and build experience on your terms in Malta and Gozo.',
     canonicalPath: '/join',
-    body: '<main><h1>Your skills can help your neighbours.</h1><p>Create a worker account, choose your services and area, and let people know when you are available.</p><ol><li>Add your name and contact details.</li><li>Choose your skills, service area and pricing.</li><li>Review requests and agree a job before you start.</li></ol><p>Regulated services require professional verification. Demo payments do not collect or transfer money.</p><a href="/register?role=Worker">Join as a worker</a></main>',
+    body: '<main><h1>Your skills can help your neighbours.</h1><p>Share what you know, find local customers, and build experience on your terms.</p><ol><li>Create your account and profile.</li><li>Choose the services you offer and where you work.</li><li>Set your availability, then review requests and agree the details.</li></ol><a href="/register?role=Worker">Offer your skills</a><small>Some regulated services require professional approval before they can be offered. Demo payments do not collect or transfer money.</small></main>',
   });
   if (path === '/services') return servicesPage(c);
   const categoryMatch = path.match(/^\/services\/([^/]+)$/);
@@ -46,10 +46,10 @@ async function servicesPage(c: Context): Promise<Response> {
   const categories = await c.env.DB.prepare('SELECT id,slug,name,description FROM categories WHERE is_active=1 ORDER BY name COLLATE NOCASE').all<{
     id: string; slug: string; name: string; description: string;
   }>();
-  const body = '<main><h1>Local services in Malta and Gozo</h1><p>Find a helping hand around your home.</p><ul>' +
+  const body = '<main><h1>Local services in Malta and Gozo</h1><p>Get help with everyday tasks, work together, or learn practical skills from people nearby.</p><ul>' +
     categories.results.map(x => `<li><a href="/services/${encodeURIComponent(x.slug)}">${escapeHtml(x.name)}</a><p>${escapeHtml(x.description)}</p></li>`).join('') + '</ul></main>';
   return renderPage(c, { title: 'Local services in Malta & Gozo | Daqqa t’Id',
-    description: 'Browse home services in Malta and Gozo, from cleaning and furniture assembly to verified professional work.',
+    description: 'Browse local services in Malta and Gozo, get help with everyday tasks, work together, or learn practical skills.',
     canonicalPath: '/services', body });
 }
 
@@ -65,11 +65,11 @@ async function categoryPage(c: Context, encodedSlug: string): Promise<Response> 
       AND (c.requires_verification=0 OR w.verification_status='Verified')`).bind(category.id).first<{ count: number }>();
   const description = `${category.description} Find local help in Malta and Gozo. Compare service options and request a clear price before confirming.`;
   const content = category.requires_verification
-    ? '<p>This service requires an approved professional. Customer participation and lessons are restricted to eligible activities.</p>'
-    : '<p>Choose professional help, work together, or learn a practical skill where this service supports it.</p>';
-  const body = `<main><h1>${escapeHtml(category.name)} in Malta and Gozo</h1><p>${escapeHtml(description)}</p>${content}` +
+    ? '<small>This service is limited to appropriately approved professionals. Customer participation and lessons are available only where permitted.</small>'
+    : '<small>Some services have legal or safety limits on customer participation and lessons.</small>';
+  const body = `<main><h1>${escapeHtml(category.name)} in Malta and Gozo</h1><p>${escapeHtml(description)}</p><p>Get local help, work together where it suits the task, or learn practical skills.</p>` +
     `<a href="/find?categoryId=${encodeURIComponent(category.id)}">Find ${escapeHtml(category.name.toLowerCase())} help</a>` +
-    '<p>Requests are subject to the worker’s acceptance and your confirmation. Prices and availability are shown by each provider. Demo profiles and simulated payments are clearly labelled.</p><a href="/join">Offer your skills</a></main>';
+    '<a href="/join">Offer your skills</a>' + content + '<small>Requests need the provider’s acceptance and your confirmation. Prices and availability are set by each provider. Demo profiles and simulated payments are labelled.</small></main>';
   return renderPage(c, { title: `${category.name} in Malta & Gozo | Daqqa t’Id`, description,
     canonicalPath: `/services/${encodeURIComponent(category.slug)}`, body,
     noindex: (count?.count ?? 0) === 0 && !STAGING(c),
@@ -88,7 +88,7 @@ async function workerPage(c: Context, workerId: string): Promise<Response> {
   const description = truncate(`${worker.display_name}, local service worker in ${worker.locality}. ${worker.bio}`, 280);
   const body = `<main><h1>${escapeHtml(worker.display_name)}</h1><p>Based in ${escapeHtml(worker.locality)}, Malta and Gozo.</p><p>${escapeHtml(worker.bio)}</p>` +
     (worker.is_demo ? '<p>Fictional demo provider. This profile is for testing and does not represent a real available worker.</p>' : '') +
-    `<p>Verification status: ${escapeHtml(worker.verification_status)}. Worker-declared availability is not live tracking.</p><a href="/bookings/new?workerId=${encodeURIComponent(worker.id)}">Request this helper</a></main>`;
+    `<a href="/bookings/new?workerId=${encodeURIComponent(worker.id)}">Request this helper</a><small>Verification status: ${escapeHtml(worker.verification_status)}. Availability is provided by the worker and is not live tracking.</small></main>`;
   return renderPage(c, { title: `${worker.display_name} in ${worker.locality} | Daqqa t’Id`, description,
     canonicalPath: `/workers/${worker.id}`, body, noindex: worker.is_demo === 1 });
 }

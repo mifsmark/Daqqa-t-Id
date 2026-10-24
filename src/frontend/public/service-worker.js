@@ -23,6 +23,57 @@ self.addEventListener("activate", (event) => {
   );
 });
 
+function safeNotificationPath(value) {
+  if (typeof value !== "string") return "/dashboard";
+  try {
+    const target = new URL(value, self.location.origin);
+    if (target.origin !== self.location.origin) return "/dashboard";
+    if (target.pathname === "/dashboard") return "/dashboard";
+    if (/^\/bookings\/[0-9a-f-]{36}$/i.test(target.pathname)) {
+      return target.pathname;
+    }
+  } catch {
+    // Fall through to the safe default.
+  }
+  return "/dashboard";
+}
+
+self.addEventListener("push", (event) => {
+  let payload = {};
+  try {
+    const parsed = event.data ? event.data.json() : {};
+    payload = parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
+  } catch {
+    payload = {};
+  }
+  const title = typeof payload.title === "string" ? payload.title : "Daqqa t’Id update";
+  const body = typeof payload.body === "string" ? payload.body : "There is an update about your bookings.";
+  const url = safeNotificationPath(payload.url);
+  const tag = typeof payload.tag === "string" ? payload.tag : "daqqa-update";
+  event.waitUntil(self.registration.showNotification(title, {
+    body,
+    tag,
+    data: { url },
+    icon: "/assets/icon.svg",
+    badge: "/assets/icon.svg",
+  }));
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const targetUrl = new URL(safeNotificationPath(event.notification.data?.url), self.location.origin).href;
+  event.waitUntil(self.clients.matchAll({ type: "window", includeUncontrolled: true }).then(async (windows) => {
+    const matching = windows.find((client) => client.url === targetUrl);
+    if (matching) return matching.focus();
+    const appWindow = windows.find((client) => new URL(client.url).origin === self.location.origin);
+    if (appWindow) {
+      await appWindow.navigate(targetUrl);
+      return appWindow.focus();
+    }
+    return self.clients.openWindow(targetUrl);
+  }));
+});
+
 self.addEventListener("fetch", (event) => {
   const request = event.request;
   const url = new URL(request.url);

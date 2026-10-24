@@ -1,4 +1,4 @@
-import type { Context, Env } from './types';
+import type { Context, Env, ExecutionContext } from './types';
 import { createContext, handleAuth, rateLimit, requireActor, validateCsrf } from './auth';
 import { handleCatalog } from './catalog';
 import { handleBookings } from './bookings';
@@ -6,6 +6,8 @@ import { handleMedia } from './media';
 import { handleAdmin } from './admin';
 import { handleSeo } from './seo';
 import { HttpError, json, problem } from './http';
+import { drainPushNotifications, handleNotifications } from './notifications';
+import { handleSupport } from './support';
 
 const demoFlags = (env: Env) => env.ENVIRONMENT === 'staging' && env.STAGING_DEMO_ENABLED === 'true';
 export async function isStagingDemo(env: Env): Promise<boolean> {
@@ -47,7 +49,7 @@ function failure(error: unknown): Response {
   console.error('Marketplace request failed', { errorType: error instanceof Error ? error.name : 'Unknown' });
   return problem(503, 'The service is temporarily unavailable. Please try again.');
 }
-async function dispatch(request: Request, env: Env): Promise<Response> {
+async function dispatch(request: Request, env: Env, execution?: ExecutionContext): Promise<Response> {
   const url = new URL(request.url), path = url.pathname;
   if (path === '/health/live') return json({ status: 'live' });
   if (path === '/health/ready') {
@@ -55,6 +57,7 @@ async function dispatch(request: Request, env: Env): Promise<Response> {
     return ready ? json({ status: 'ready' }) : problem(503, 'Apply the reviewed database migrations first.');
   }
   if (path.startsWith('/api/') || path === '/api') {
+    if (path === '/api/support' && request.method === 'GET') return handleSupport(env);
     if (path === '/api/admin/staging-demo/fixture' && !await isStagingDemo(env)) return problem(404, 'Not found.');
     const c = await createContext(request, env);
     // Read the actor's current suspension state on every protected API request.
@@ -70,6 +73,9 @@ async function dispatch(request: Request, env: Env): Promise<Response> {
     }
     response ??= await handleCatalog(c);
     response ??= await handleBookings(c);
+    response ??= await handleNotifications(c, execution ? promise => execution.waitUntil(promise) : undefined);
+    if (execution && response && response.status < 400 && ['POST','PUT','PATCH'].includes(request.method)
+      && /^\/api\/bookings(?:\/|$)/.test(path)) execution.waitUntil(drainPushNotifications(env));
     response ??= await handleMedia(c);
     response ??= await handleAdmin(c);
     return response ?? problem(404, 'Not found.');
@@ -83,8 +89,11 @@ async function dispatch(request: Request, env: Env): Promise<Response> {
   return env.ASSETS.fetch(request);
 }
 export default {
-  async fetch(request: Request, env: Env): Promise<Response> {
-    try { return finish(await dispatch(request, env), request, env); }
+  async fetch(request: Request, env: Env, execution?: ExecutionContext): Promise<Response> {
+    try { return finish(await dispatch(request, env, execution), request, env); }
     catch (error) { return finish(failure(error), request, env); }
+  },
+  async scheduled(_event: ScheduledController, env: Env, execution: ExecutionContext): Promise<void> {
+    execution.waitUntil(drainPushNotifications(env));
   },
 };

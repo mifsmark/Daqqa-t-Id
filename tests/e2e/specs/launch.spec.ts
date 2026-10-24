@@ -16,6 +16,12 @@ test('a worker completes the three-step profile on a phone and gets clear hours 
   await page.getByLabel('Password').fill('Good-Password-2026');
   await page.getByRole('button', { name: 'Create account' }).click();
   await expect(page).toHaveURL(/\/worker$/);
+  const notifications = page.getByRole('button', { name: /^Notifications/ });
+  await expect(notifications).toBeVisible();
+  await notifications.click();
+  await expect(page.getByRole('region', { name: 'Updates' })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBeTruthy();
+  await notifications.click();
   await expect(page.getByLabel('Your display name')).toHaveValue('Pilot Browser Helper');
   await page.getByRole('button', { name: 'Continue' }).click();
   await expect(page.getByText('Step 2 of 3')).toBeVisible();

@@ -13,7 +13,7 @@ The staging site at <https://daqqa-t-id-staging.daqqatid-75d7e2e4.workers.dev> i
 Before real-pilot invitations, the owner/operator should complete and record all of these launch checks:
 
 - The final pilot URL and production data store are configured separately from staging; public pages, registration, cookie/CSRF writes, image privacy, account recovery/support path, and the full booking lifecycle work over HTTPS.
-- A real booking has been exercised end to end with consenting test participants, and the operator can see and respond to new requests. Do not assume automated notifications exist; assign a person to check the dashboard at an agreed cadence and tell workers what to expect.
+- A real booking has been exercised end to end with consenting test participants, and the operator can see and respond to new requests. Test the bell inbox and opted-in phone alerts with each helper; assign a dashboard check cadence as a fallback and explain it during onboarding.
 - Real payment processing is either deliberately out of scope and plainly explained before a request, or has separately completed provider, accounting, legal, and refund checks. The current app uses simulated payments; do not ask for card details or describe a simulation as a charge.
 - Privacy notice, terms, support contact, incident/escalation route, cancellation/refund wording, and worker consent for public profile material have been reviewed for this real pilot. These are review gates, not claims that the present placeholder text is ready.
 - The operator has a simple record of worker consent, service scope, locality, current availability, and profile corrections/removal requests. Do not expose private identity or verification documents in public copy.
@@ -66,10 +66,12 @@ Use two different destinations:
 
 For a real pilot, invite customers only after the worker cohort and launch checks pass. Start with known local networks and permitted community groups, cap invitations according to available worker capacity, and stop when requests outpace the operator’s ability to support them. A worker may share their own profile link only after reviewing it and consenting to its public details; the link is not a booking promise.
 
-## Monetization learning, not active fees
+## Optional support from the first real launch
 
-There is no active real-money fee or payment processing to advertise. Admin commission and payment records in this app are part of a simulated flow. Do not charge a fee, promise worker earnings, or call simulated booking value revenue. First learn whether both sides value a completed booking and what support it costs.
+The owner selected low-pressure, value-based monetization. The implemented first model is an **optional, one-off platform support payment** after a completed booking, also reachable from the footer. Browsing, joining, booking, search ranking and response priority do not depend on paying. There are no subscriptions or invented premium benefits. Lead with the useful information and coordination the app actually provides, then offer the choice once it has helped.
 
-After real payment, consumer, tax, and accounting arrangements have been reviewed, test one transparent model with a small consenting cohort at a time: (a) no fee during the initial learning period, (b) a clearly disclosed worker-side percentage on completed paid bookings, or (c) a fixed customer service fee. Show the full price and who pays before confirmation; measure completion and repeat use as well as revenue. Do not test two fee models on otherwise identical users without clear disclosure. A fee should not be enabled in the product until the owner has approved its terms and implementation.
+[MONETIZATION.md](MONETIZATION.md) explains how to connect an owner-controlled Stripe Payment Link in Production. Staging always disables it; no real checkout is connected today. Stripe shows the chosen amount and terms and provides payment records. A link click or return to the app is never counted as revenue. The simulated booking commission ledger remains separate and does not collect money.
+
+For the initial consenting real cohort, record completed jobs, repeat use, optional-support page views only if consented analytics are configured, actual paid support payments from Stripe, provider fees, refunds and support time. Do not infer willingness to pay from clicks. Review whether the service saved effort and whether voluntary revenue covers its costs. Introduce no additional fee or recurring plan without a concrete benefit and clear advance terms.
 
 The illustrative math in [LAUNCH-KIT.md](LAUNCH-KIT.md) is scenario analysis only. Actual demand, prices, costs, taxes, refunds, chargebacks, and margins are unknown. No income is guaranteed.

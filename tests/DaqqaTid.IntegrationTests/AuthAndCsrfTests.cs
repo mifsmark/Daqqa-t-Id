@@ -52,8 +52,7 @@ public sealed class SqlApiFactory(TimeProvider? clock = null, string environment
     {
         using var scope = Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-        if (stagingDemo) await db.Database.MigrateAsync();
-        else await db.Database.EnsureCreatedAsync();
+        await db.Database.MigrateAsync();
         await DatabaseSeeder.SeedReferenceDataAsync(db);
         var roles = scope.ServiceProvider.GetRequiredService<Microsoft.AspNetCore.Identity.RoleManager<Microsoft.AspNetCore.Identity.IdentityRole<Guid>>>();
         foreach (var role in new[] { "Customer", "Worker", "Admin" })

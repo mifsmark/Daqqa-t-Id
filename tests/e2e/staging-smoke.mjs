@@ -29,6 +29,13 @@ async function ok(response) {
   return response.json();
 }
 
+async function notification(person, bookingId, kind) {
+  const inbox = await ok(await person.api.get('/api/notifications'));
+  const item = inbox.items.find(item => item.bookingId === bookingId && item.kind === kind);
+  assert.ok(item, `${kind} notification is missing from the intended recipient's inbox.`);
+  assert.equal(item.url, `/bookings/${bookingId}`);
+}
+
 try {
   const admin = await actor({ email, password });
   assert.equal(admin.user.role, 'Admin');
@@ -38,6 +45,7 @@ try {
   const robots = await admin.api.get('/robots.txt');
   assert.equal(await robots.text(), 'User-agent: *\nDisallow: /\n');
   assert.equal((await admin.api.get('/sitemap.xml')).status(), 404);
+  assert.deepEqual(await ok(await admin.api.get('/api/support')), { enabled: false, checkoutUrl: null }, 'Staging must never offer real payments.');
   const fixture = await admin.post('/api/admin/staging-demo/fixture', {});
   const customer = await actor(fixture.customer);
   const worker = await actor(fixture.worker);
@@ -53,10 +61,12 @@ try {
     durationMinutes: 60, isAsap: false, idempotencyKey: `staging-smoke-${fixture.runId}`
   });
   const id = booking.id;
+  await notification(worker, id, 'Requested');
   for (const [person, action, status] of [[worker, 'accept', 'WorkerAccepted'], [customer, 'confirm', 'Confirmed'], [worker, 'start', 'InProgress'], [worker, 'complete', 'Completed']]) {
     booking = await person.post(`/api/bookings/${id}/action`, { action });
     assert.equal(booking.status, status);
     assert.equal(booking.isSimulated, true);
+    await notification(status === 'Confirmed' ? worker : customer, id, status);
   }
   const bytes = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9ZtV8AAAAASUVORK5CYII=', 'base64');
   const media = await customer.upload('/api/media', {
@@ -71,9 +81,10 @@ try {
   contexts.push(anonymous);
   assert.equal((await anonymous.get(media.url)).status(), 404, 'Private booking photo is visible anonymously.');
   await customer.post(`/api/bookings/${id}/review`, { rating: 5, comment: 'Fictional staging smoke test review.' });
+  await notification(worker, id, 'Review');
   const payments = await ok(await admin.api.get('/api/admin/payments'));
   assert.equal(payments.filter(p => p.bookingId === id && p.isSimulated === true).length, 1);
-  console.log(`Staging smoke passed: booking ${id} completed; private photo, one simulated payment and review verified.`);
+  console.log(`Staging smoke passed: booking ${id} completed; recipient notifications, private photo, one simulated payment and review verified. Real support checkout is disabled.`);
 } finally {
   await Promise.all(contexts.map(context => context.dispose()));
 }

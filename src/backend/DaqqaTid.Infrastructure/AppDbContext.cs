@@ -21,9 +21,15 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : Ident
     public DbSet<SavedMedia> Media => Set<SavedMedia>();
     public DbSet<Review> Reviews => Set<Review>(); public DbSet<SimulatedPayment> Payments => Set<SimulatedPayment>(); public DbSet<PrivacyRequest> PrivacyRequests => Set<PrivacyRequest>();
     public DbSet<AuditEntry> AuditEntries => Set<AuditEntry>(); public DbSet<AppSetting> Settings => Set<AppSetting>();
+    public DbSet<UserNotification> Notifications => Set<UserNotification>();
+    public DbSet<NotificationDevice> NotificationDevices => Set<NotificationDevice>();
+    public DbSet<NotificationOutbox> NotificationOutbox => Set<NotificationOutbox>();
     protected override void OnModelCreating(ModelBuilder b)
     {
         base.OnModelCreating(b);
+        b.Entity<UserNotification>(e => { e.HasKey(x => x.Id); e.Property(x => x.Kind).HasMaxLength(32); e.Property(x => x.Title).HasMaxLength(120); e.Property(x => x.Message).HasMaxLength(300); e.Property(x => x.Url).HasMaxLength(200); e.Property(x => x.SourceType).HasMaxLength(32); e.HasIndex(x => new { x.SourceType, x.SourceId, x.RecipientId }).IsUnique(); e.HasIndex(x => new { x.RecipientId, x.ReadAt, x.CreatedAt }); e.HasOne<ApplicationUser>().WithMany().HasForeignKey(x => x.RecipientId).OnDelete(DeleteBehavior.Cascade); });
+        b.Entity<NotificationDevice>(e => { e.HasKey(x => x.Id); e.Property(x => x.DeviceTokenHash).HasMaxLength(64); e.Property(x => x.Endpoint).HasMaxLength(2048); e.Property(x => x.EndpointHash).HasMaxLength(64); e.Property(x => x.P256dh).HasMaxLength(200); e.Property(x => x.Auth).HasMaxLength(100); e.Property(x => x.SecurityStamp).HasMaxLength(128); e.HasIndex(x => x.DeviceTokenHash).IsUnique(); e.HasIndex(x => x.EndpointHash).IsUnique(); e.HasOne<ApplicationUser>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade); });
+        b.Entity<NotificationOutbox>(e => { e.HasKey(x => x.Id); e.Property(x => x.LeaseToken); e.HasIndex(x => new { x.DueAt, x.LeaseUntil, x.SentAt }); e.HasIndex(x => new { x.NotificationId, x.DeviceId }).IsUnique(); });
         b.Entity<Category>().HasIndex(x => x.Slug).IsUnique(); b.Entity<Category>().Property(x => x.Slug).HasMaxLength(100);
         b.Entity<Locality>().HasKey(x => x.Name); b.Entity<Locality>().Property(x => x.Name).HasMaxLength(100); b.Entity<Locality>().Property(x => x.Location).HasColumnType("geography");
         b.Entity<CategoryMode>().HasKey(x => new { x.CategoryId, x.Mode }); b.Entity<CategoryMode>().HasOne<Category>().WithMany(x => x.Modes).HasForeignKey(x => x.CategoryId).OnDelete(DeleteBehavior.Cascade);

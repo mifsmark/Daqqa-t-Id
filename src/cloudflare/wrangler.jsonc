@@ -54,6 +54,11 @@
         "PUBLIC_ORIGIN": "https://daqqa-t-id-staging.daqqatid-75d7e2e4.workers.dev",
         "STAGING_DEMO_ENABLED": "true",
         "STAGING_DEMO_DATABASE_NAME": "daqqa-t-id_staging_demo"
+      },
+      "triggers": {
+        "crons": [
+          "* * * * *"
+        ]
       }
     },
     "production": {

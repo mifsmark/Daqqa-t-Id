@@ -1,5 +1,38 @@
 import { expect, test } from '@playwright/test';
 
+type BrowserNotification = {
+  id: string;
+  bookingId: string | null;
+  kind: string;
+  title: string;
+  message: string;
+  url: string;
+  createdAt: string;
+  readAt: string | null;
+};
+
+async function waitForNotification(page: import('@playwright/test').Page, bookingId: string, kind: string) {
+  let found: BrowserNotification | undefined;
+  await expect.poll(async () => {
+    const response = await page.request.get('/api/notifications');
+    if (!response.ok()) return false;
+    const result = await response.json() as { items: BrowserNotification[] };
+    found = result.items.find(item => item.bookingId === bookingId && item.kind === kind);
+    return !!found;
+  }, `${kind} notification for booking ${bookingId}`).toBeTruthy();
+  expect(found).toMatchObject({ bookingId, kind, url: `/bookings/${bookingId}` });
+  return found!;
+}
+
+async function openAndReadBookingNotification(page: import('@playwright/test').Page, bookingId: string, title: string, unreadCount: number) {
+  await page.getByRole('button', { name: `Notifications, ${unreadCount} unread` }).click();
+  const panel = page.getByRole('region', { name: 'Updates' });
+  const link = panel.locator(`a[href="/bookings/${bookingId}"]`).filter({ hasText: title }).first();
+  await expect(link).toBeVisible();
+  await link.click();
+  await expect(page).toHaveURL(new RegExp(`/bookings/${bookingId}$`));
+}
+
 // Exercises the real browser, same-origin cookie session and API-backed pages.
 test('a new customer can create an account and reach the helper search', async ({ page }) => {
   const email = `e2e-${crypto.randomUUID()}@example.test`;
@@ -130,21 +163,49 @@ test('customer request, worker acceptance, completion and review work across rea
   await expect(page).toHaveURL(new RegExp(`/bookings/${bookingId}$`));
   await expect(page.getByText('Waiting for helper', { exact: true })).toBeVisible();
 
+  const requestedNotification = await waitForNotification(workerPage, bookingId, 'Requested');
+  expect(requestedNotification.readAt).toBeNull();
+  await workerPage.goto('/dashboard');
+  await openAndReadBookingNotification(workerPage, bookingId, requestedNotification.title, 1);
+  await expect.poll(async () => (await (await workerPage.request.get('/api/notifications')).json()).items
+    .find((item: BrowserNotification) => item.id === requestedNotification.id)?.readAt || false).toBeTruthy();
+  await workerPage.getByRole('button', { name: 'Notifications' }).click();
+  await expect(workerPage.getByRole('region', { name: 'Updates' }).locator('[aria-label="Unread"]')).toHaveCount(0);
+
   await workerPage.goto(`/bookings/${bookingId}`);
   await workerPage.getByRole('button', { name: 'Accept request' }).click();
   await expect(workerPage.getByText('Helper accepted', { exact: true })).toBeVisible();
+  const acceptedNotification = await waitForNotification(page, bookingId, 'WorkerAccepted');
+  expect(acceptedNotification.readAt).toBeNull();
   await page.reload();
   await page.getByRole('button', { name: 'Confirm booking' }).click();
   await expect(page.getByText('Confirmed', { exact: true })).toBeVisible();
+  const confirmedNotification = await waitForNotification(workerPage, bookingId, 'Confirmed');
+  expect(confirmedNotification.readAt).toBeNull();
   await page.getByLabel('Add a booking photo').setInputFiles({ name: 'task.png', mimeType: 'image/png', buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9ZtV8AAAAASUVORK5CYII=', 'base64') });
   await expect(page.getByText('Photo added to this private booking.')).toBeVisible();
   await workerPage.reload();
   await expect(workerPage.getByRole('img', { name: 'Private booking photo 1' })).toBeVisible();
   await workerPage.getByRole('button', { name: 'Start service' }).click();
   await expect(workerPage.getByText('In progress', { exact: true })).toBeVisible();
+  const inProgressNotification = await waitForNotification(page, bookingId, 'InProgress');
+  expect(inProgressNotification.readAt).toBeNull();
   await workerPage.getByRole('button', { name: 'Mark complete' }).click();
   await expect(workerPage.getByText('Completed', { exact: true })).toBeVisible();
   await expect(workerPage.getByText('Simulated total', { exact: true })).toBeVisible();
+  const completedNotification = await waitForNotification(page, bookingId, 'Completed');
+  expect(completedNotification.readAt).toBeNull();
+
+  await page.goto('/dashboard');
+  await openAndReadBookingNotification(page, bookingId, completedNotification.title, 3);
+  const customerNotifications = await (await page.request.get('/api/notifications')).json() as { items: BrowserNotification[]; unreadCount: number };
+  expect(customerNotifications.unreadCount).toBe(2);
+  expect(customerNotifications.items.find(item => item.id === acceptedNotification.id)?.readAt).toBeNull();
+  expect(customerNotifications.items.find(item => item.id === inProgressNotification.id)?.readAt).toBeNull();
+  expect(customerNotifications.items.find(item => item.id === completedNotification.id)?.readAt).not.toBeNull();
+  await page.getByRole('button', { name: /Notifications, 2 unread/ }).click();
+  await page.getByRole('region', { name: 'Updates' }).getByRole('button', { name: 'Mark all read' }).click();
+  await expect.poll(async () => ((await (await page.request.get('/api/notifications')).json()) as { unreadCount: number }).unreadCount).toBe(0);
 
   await page.reload();
   await page.getByLabel('Your rating').selectOption('5');

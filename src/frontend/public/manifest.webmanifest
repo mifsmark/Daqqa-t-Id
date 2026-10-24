@@ -1,7 +1,7 @@
 {
   "name": "Daqqa t’Id",
   "short_name": "Daqqa t’Id",
-  "description": "Find and share local help in Malta and Gozo.",
+  "description": "Find local help, work together on everyday tasks, or learn practical skills in Malta and Gozo.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#f7f3e9",
