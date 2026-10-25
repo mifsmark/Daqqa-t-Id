@@ -1,0 +1,88 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "daqqa-t-id",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-10-23",
+  "compatibility_flags": [
+    "nodejs_compat"
+  ],
+  "workers_dev": true,
+  "assets": {
+    "directory": "../frontend/dist",
+    "binding": "ASSETS",
+    "run_worker_first": true
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "daqqa-t-id",
+      "database_id": "00000000-0000-0000-0000-000000000000",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "kv_namespaces": [
+    {
+      "binding": "MEDIA",
+      "id": "00000000000000000000000000000000"
+    }
+  ],
+  "vars": {
+    "ENVIRONMENT": "development",
+    "PUBLIC_ORIGIN": "http://127.0.0.1:8787",
+    "STAGING_DEMO_ENABLED": "false",
+    "STAGING_DEMO_DATABASE_NAME": "daqqa-t-id"
+  },
+  "env": {
+    "staging": {
+      "name": "daqqa-t-id-staging",
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "daqqa-t-id_staging_demo",
+          "database_id": "10840584-1a66-4fc1-ba5a-79a0621205ab",
+          "migrations_dir": "migrations"
+        }
+      ],
+      "kv_namespaces": [
+        {
+          "binding": "MEDIA",
+          "id": "51030802e6f249c7b7c6a22e83750af2"
+        }
+      ],
+      "vars": {
+        "ENVIRONMENT": "staging",
+        "PUBLIC_ORIGIN": "https://daqqa-t-id-staging.daqqatid-75d7e2e4.workers.dev",
+        "STAGING_DEMO_ENABLED": "true",
+        "STAGING_DEMO_DATABASE_NAME": "daqqa-t-id_staging_demo"
+      },
+      "triggers": {
+        "crons": [
+          "* * * * *"
+        ]
+      }
+    },
+    "production": {
+      "name": "daqqa-t-id-production",
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "daqqa-t-id-production",
+          "database_id": "11111111-1111-1111-1111-111111111111",
+          "migrations_dir": "migrations"
+        }
+      ],
+      "kv_namespaces": [
+        {
+          "binding": "MEDIA",
+          "id": "11111111111111111111111111111111"
+        }
+      ],
+      "vars": {
+        "ENVIRONMENT": "production",
+        "PUBLIC_ORIGIN": "https://daqqa-t-id.<your-domain>",
+        "STAGING_DEMO_ENABLED": "false",
+        "STAGING_DEMO_DATABASE_NAME": "daqqa-t-id-production"
+      }
+    }
+  }
+}
