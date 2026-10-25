@@ -79,6 +79,27 @@ public sealed class HostingSmokeTests : IAsyncLifetime
         Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync("/missing-page")).StatusCode);
     }
 
+    [Fact]
+    public async Task Contact_and_support_are_directly_routable_server_rendered_documents()
+    {
+        var contact = await client.GetAsync("/contact");
+        Assert.Equal(HttpStatusCode.OK, contact.StatusCode);
+        Assert.Contains("text/html", contact.Content.Headers.ContentType?.MediaType);
+        var contactHtml = await contact.Content.ReadAsStringAsync();
+        Assert.Contains("<title>Contact Daqqa t’Id</title>", contactHtml);
+        Assert.Contains("<h1>Contact Daqqa t’Id</h1>", contactHtml);
+        Assert.Contains("mailto:markanthonymifsud@yahoo.com", contactHtml);
+        Assert.Contains("https://wa.me/35699894619", contactHtml);
+
+        var support = await client.GetAsync("/support");
+        Assert.Equal(HttpStatusCode.OK, support.StatusCode);
+        Assert.Contains("text/html", support.Content.Headers.ContentType?.MediaType);
+        var supportHtml = await support.Content.ReadAsStringAsync();
+        Assert.Contains("<title>Support Daqqa t’Id</title>", supportHtml);
+        Assert.Contains("<h1>Support a useful local service.</h1>", supportHtml);
+        Assert.Contains("href=\"/contact\"", supportHtml);
+    }
+
     private sealed class OfflineSqlFactory : WebApplicationFactory<Program>
     {
         private readonly string webRoot = Path.Combine(Path.GetTempPath(), "daqqa-hosting-smoke-" + Guid.NewGuid().ToString("N"));

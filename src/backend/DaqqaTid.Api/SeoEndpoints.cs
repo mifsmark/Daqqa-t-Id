@@ -28,7 +28,7 @@ public static partial class SeoEndpoints
             var workers = db.Workers.Where(w => !w.IsDemo && w.VerificationStatus != VerificationStatus.Suspended && db.Users.Any(u => u.Id == w.UserId && !u.IsSuspended));
             var slugs = await db.Categories.AsNoTracking().Where(c => c.IsActive && db.Offerings.Any(o => o.CategoryId == c.Id && workers.Any(w => w.Id == o.WorkerId && (!c.RequiresVerification || w.VerificationStatus == VerificationStatus.Verified)))).Select(c => c.Slug).ToListAsync(ct);
             var workerIds = await workers.Where(w => db.Offerings.Any(o => o.WorkerId == w.Id && db.Categories.Any(c => c.Id == o.CategoryId && c.IsActive && (!c.RequiresVerification || w.VerificationStatus == VerificationStatus.Verified)))).Select(w => w.Id).ToListAsync(ct);
-            var paths = new[] { "/", "/services", "/join" }.Concat(slugs.Select(s => "/services/" + Uri.EscapeDataString(s))).Concat(workerIds.Select(id => "/workers/" + id));
+            var paths = new[] { "/", "/services", "/join", "/contact" }.Concat(slugs.Select(s => "/services/" + Uri.EscapeDataString(s))).Concat(workerIds.Select(id => "/workers/" + id));
             var xml = "<?xml version=\"1.0\" encoding=\"UTF-8\"?><urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">" +
                 string.Concat(paths.Select(p => "<url><loc>" + WebUtility.HtmlEncode(origin + p) + "</loc></url>")) + "</urlset>";
             return Results.Content(xml, "application/xml");
@@ -64,6 +64,14 @@ public static partial class SeoEndpoints
         app.MapGet("/join", (IWebHostEnvironment env, IConfiguration cfg, CancellationToken ct) => Html(env, cfg,
             "Find local customers for your skills | Daqqa t’Id", "Share your skills, find local customers, and build experience on your terms in Malta and Gozo.", "/join",
             "<main><h1>Your skills can help your neighbours.</h1><p>Share what you know, find local customers, and build experience on your terms.</p><ol><li>Create your account and profile.</li><li>Choose the services you offer and where you work.</li><li>Set your availability, then review requests and agree the details.</li></ol><a href=\"/register?role=Worker\">Offer your skills</a><small>Some regulated services require professional approval before they can be offered. Demo payments do not collect or transfer money.</small></main>", null, ct));
+        app.MapGet("/contact", (HttpContext context, IWebHostEnvironment env, IConfiguration cfg, CancellationToken ct) => Html(env, cfg,
+            "Contact Daqqa t’Id", "Get in touch with Daqqa t’Id for help with the platform.", "/contact",
+            "<main><h1>Contact Daqqa t’Id</h1><p>Need help or have a question? Email <a href=\"mailto:markanthonymifsud@yahoo.com\">markanthonymifsud@yahoo.com</a> or message us on <a href=\"https://wa.me/35699894619\">WhatsApp</a>.</p></main>", null, ct,
+            cfg.GetValue<bool>("StagingDemo:Enabled"), context));
+        app.MapGet("/support", (HttpContext context, IWebHostEnvironment env, IConfiguration cfg, CancellationToken ct) => Html(env, cfg,
+            "Support Daqqa t’Id", "Optional one-off support for the Daqqa t’Id platform.", "/support",
+            "<main><h1>Support a useful local service.</h1><p>When available, you can make an optional one-off payment to support the platform. You can keep using the service without paying.</p><a href=\"/contact\">Contact us about platform support</a></main>", null, ct,
+            cfg.GetValue<bool>("StagingDemo:Enabled"), context));
         app.MapGet("/", (IWebHostEnvironment env, IConfiguration cfg, CancellationToken ct) => Html(env, cfg,
             "Daqqa t’Id | Find local help in Malta & Gozo", "Find local help, work together on everyday tasks, or learn practical skills with people in Malta and Gozo.", "",
             "<main><h1>Find local help. Get things done.</h1><p>Connect with people in Malta and Gozo for the help you need around home and everyday life.</p><p>Book a service, work together on a task, or learn a practical skill from someone nearby.</p><a href=\"/services\">Explore services</a> <a href=\"/join\">Offer your skills</a></main>",
@@ -78,7 +86,7 @@ public static partial class SeoEndpoints
     }
     private static string? Origin(IConfiguration cfg) => Uri.TryCreate(cfg["PublicOrigin"], UriKind.Absolute, out var uri) && uri.Scheme is "https" or "http" ? uri.GetLeftPart(UriPartial.Authority).TrimEnd('/') : null;
     private static string E(string value) => WebUtility.HtmlEncode(value);
-    private static async Task<IResult> Html(IWebHostEnvironment env, IConfiguration cfg, string title, string description, string path, string body, object? schema, CancellationToken ct)
+    private static async Task<IResult> Html(IWebHostEnvironment env, IConfiguration cfg, string title, string description, string path, string body, object? schema, CancellationToken ct, bool noindex = false, HttpContext? context = null)
     {
         var index = Path.Combine(env.WebRootPath ?? Path.Combine(env.ContentRootPath, "wwwroot"), "index.html");
         if (!File.Exists(index)) return Results.Problem("Build the frontend and copy dist into the API wwwroot directory.", statusCode: 503);
@@ -89,8 +97,10 @@ public static partial class SeoEndpoints
         var meta = $"<meta name=\"description\" content=\"{E(description)}\"><meta property=\"og:type\" content=\"website\"><meta property=\"og:title\" content=\"{E(title)}\"><meta property=\"og:description\" content=\"{E(description)}\"><meta name=\"twitter:card\" content=\"summary\">";
         var canonicalPath = string.IsNullOrEmpty(path) ? "/" : path;
         if (origin is not null) meta += $"<link rel=\"canonical\" href=\"{E(origin + canonicalPath)}\"><meta property=\"og:url\" content=\"{E(origin + canonicalPath)}\">";
+        if (noindex) meta += "<meta name=\"robots\" content=\"noindex, nofollow\">";
         if (schema is not null) meta += "<script type=\"application/ld+json\">" + JsonSerializer.Serialize(schema) + "</script>";
         html = html.Replace("</head>", meta + "</head>").Replace("<div id=\"root\"></div>", "<div id=\"root\">" + body + "</div>");
+        if (noindex && context is not null) context.Response.Headers["X-Robots-Tag"] = "noindex, nofollow";
         return Results.Content(html, "text/html; charset=utf-8");
     }
     [GeneratedRegex("<title>.*?</title>", RegexOptions.Singleline | RegexOptions.IgnoreCase)] private static partial Regex TitleTag();

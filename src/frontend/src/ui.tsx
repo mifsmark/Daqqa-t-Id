@@ -28,6 +28,7 @@ import {
 import { api, Category, Session, setCsrf, Worker, json, User } from "./api";
 import { MediaPanel } from "./MediaPanel";
 import { OptionalSupportCard, SupportPage } from "./OptionalSupport";
+import { ContactLinks, ContactPage } from "./ContactSupport";
 const modes = [
   ["ForMe", "Get it done"],
   ["WithMe", "Work side by side"],
@@ -376,8 +377,10 @@ function Footer() {
       <div>
         <Link to="/privacy">Privacy</Link>
         <Link to="/terms">Terms</Link>
+        <Link to="/contact">Contact</Link>
         <Link to="/support">Support the service</Link>
       </div>
+      <ContactLinks compact />
       <small>© Daqqa t’Id</small>
     </footer>
   );
@@ -1173,6 +1176,7 @@ function Forgot() {
         <p className="form-foot">
           <Link to="/login">Back to log in</Link>
         </p>
+        <p className="form-foot"><Link to="/contact">Get help with your account</Link></p>
       </div>
     </section>
   );
@@ -3000,6 +3004,8 @@ function Legal({ privacy = false }) {
           <Link to="/account">Account & privacy</Link> and send a privacy
           request from your account.
         </p>
+        <p>For privacy or service questions, contact us:</p>
+        <ContactLinks compact />
       </div>
     </section>
   );
@@ -3105,6 +3111,7 @@ export default function App() {
       stagingDemoEnabled={!!s?.stagingDemoEnabled}
     >
       <Routes>
+        <Route path="/contact" element={<ContactPage />} />
         <Route path="/support" element={<SupportPage />} />
         <Route path="/" element={<Home />} />
         <Route path="/services" element={<Services />} />

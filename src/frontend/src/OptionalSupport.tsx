@@ -59,6 +59,7 @@ export function SupportPage() {
           <p role="status">{offer.isError ? "Payment availability could not be checked. You can continue using Daqqa t’Id." : "Optional payments are not connected here yet. You can continue using Daqqa t’Id."}</p>
         )}
         <Link className="text-link" to="/services">Keep exploring services</Link>
+        <p><Link className="text-link" to="/contact">Contact us about platform support</Link></p>
       </div>
     </section>
   );

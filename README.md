@@ -8,6 +8,8 @@ Staging has been published at [daqqa-t-id-staging.daqqatid-75d7e2e4.workers.dev]
 
 Customers and helpers receive booking updates in the bell inbox, with optional phone alerts: [setup and testing](docs/NOTIFICATIONS.md). [Optional platform support](docs/MONETIZATION.md) is available only after an owner-controlled live checkout is configured in Production; staging cannot accept real payments.
 
+Public support is available through the app’s Contact page: [WhatsApp](https://wa.me/35699894619) or [email](mailto:markanthonymifsud@yahoo.com). [PROMOTION-STARTER.md](docs/PROMOTION-STARTER.md) contains the current launch checklist and ready-to-use recruitment messages with those contacts.
+
 Use the [manual testing guide](docs/REAL-TESTING.md) for helper/customer test accounts and a complete booking. The [launch kit](docs/LAUNCH-KIT.md) provides recruitment messages and a proposed first-locality pilot; real-service promotion begins after its launch checks.
 
 With Node 22 or newer:

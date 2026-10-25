@@ -29,6 +29,18 @@ export async function handleSeo(c: Context): Promise<Response | undefined> {
     body: '<main><h1>Your skills can help your neighbours.</h1><p>Share what you know, find local customers, and build experience on your terms.</p><ol><li>Create your account and profile.</li><li>Choose the services you offer and where you work.</li><li>Set your availability, then review requests and agree the details.</li></ol><a href="/register?role=Worker">Offer your skills</a><small>Some regulated services require professional approval before they can be offered. Demo payments do not collect or transfer money.</small></main>',
   });
   if (path === '/services') return servicesPage(c);
+  if (path === '/contact') return renderPage(c, {
+    title: 'Contact Daqqa t’Id',
+    description: 'Get in touch with Daqqa t’Id for help with the platform.',
+    canonicalPath: '/contact',
+    body: '<main><h1>Contact Daqqa t’Id</h1><p>Need help or have a question? Email <a href="mailto:markanthonymifsud@yahoo.com">markanthonymifsud@yahoo.com</a> or message us on <a href="https://wa.me/35699894619">WhatsApp</a>.</p></main>',
+  });
+  if (path === '/support') return renderPage(c, {
+    title: 'Support Daqqa t’Id',
+    description: 'Optional one-off support for the Daqqa t’Id platform.',
+    canonicalPath: '/support',
+    body: '<main><h1>Support a useful local service.</h1><p>When available, you can make an optional one-off payment to support the platform. You can keep using the service without paying.</p><a href="/contact">Contact us about platform support</a></main>',
+  });
   const categoryMatch = path.match(/^\/services\/([^/]+)$/);
   if (categoryMatch) return categoryPage(c, categoryMatch[1]);
   const workerMatch = path.match(/^\/workers\/([^/]+)$/);
@@ -107,7 +119,7 @@ async function sitemap(c: Context): Promise<Response> {
   const publicOrigin = origin(c);
   if (!publicOrigin) return json({ title: 'Service unavailable', detail: 'PUBLIC_ORIGIN must be configured before publishing the sitemap.', status: 503 }, 503);
   const records = await c.env.DB.prepare(`
-    SELECT '/' AS path UNION ALL SELECT '/services' UNION ALL SELECT '/join'
+    SELECT '/' AS path UNION ALL SELECT '/services' UNION ALL SELECT '/join' UNION ALL SELECT '/contact'
     UNION SELECT '/services/'||c.slug FROM categories c WHERE c.is_active=1 AND EXISTS (
       SELECT 1 FROM offerings o JOIN workers w ON w.id=o.worker_id JOIN users u ON u.id=w.user_id
       WHERE o.category_id=c.id AND w.is_demo=0 AND w.verification_status<>'Suspended' AND u.is_suspended=0

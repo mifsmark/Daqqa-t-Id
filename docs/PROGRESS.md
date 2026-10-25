@@ -1,10 +1,20 @@
-# Delivery progress — 24 October 2026
+# Delivery progress — 25 October 2026
 
 ## Status
 
 The original .NET/SQL Server MVP remains available on `feat/marketplace-mvp`, with an additional Cloudflare Workers/D1/KV backend using the same React app and API contract. Cloudflare staging has been published at **https://daqqa-t-id-staging.daqqatid-75d7e2e4.workers.dev**. The notification release is deployed and its public HTTPS booking/notification/photo/review smoke passed. Actual phone OS alert display still requires an opted-in device. No Azure resources, paid Cloudflare subscription or production payments have been created. PR #1 remains open and unmerged.
 
 Lower-cost GPT-6 Luna agents implemented the backend, frontend, infrastructure and tests under the primary agent's architectural, security and integration review. Initial network blocks on SQL downloads and GitHub API access were resolved after the saved network configuration became effective; both operations now work.
+
+## Public support and promotion contact — 25 October 2026
+
+The owner selected public email **markanthonymifsud@yahoo.com** and WhatsApp **+356 9989 4619**. Added working mailto/WhatsApp links to the shared app footer and a mobile Contact page, with links from password recovery, privacy/terms and platform support. Both backends serve `/contact` directly with metadata and include it in the production sitemap; staging keeps its noindex restrictions. Public contact details do not configure outbound email or identify a verified administrator, so no account promotion or SMTP setup was performed.
+
+While adding the document route, fixed the existing `/support` direct-visit/reload 404. Server-rendered copy now matches the optional platform-support purpose; the production-only API remains authoritative for checkout availability. Added direct-document regressions and a 375px real browser journey checking reloads, the supplied destinations, footer navigation, account-help access and horizontal overflow.
+
+Updated [LAUNCH-KIT.md](LAUNCH-KIT.md) and added [PROMOTION-STARTER.md](PROMOTION-STARTER.md) with the owner-selected contacts, ready-to-use tester/helper invitations, launch prerequisites, a local recruitment plan and optional referral/support wording. Production URLs stay explicit placeholders until a real launch is configured. No outreach or support messages were sent.
+
+Local verification passed: frontend type/lint/build and all **13 tests**, Release solution build with **zero warnings/errors**, both focused .NET hosting tests, the **36 existing Worker cases plus three new document-routing cases**, Worker/browser type checks and all **six Playwright journeys against each backend**. Current full hosted checks are available on [PR #1](https://github.com/mifsmark/Daqqa-t-Id/pull/1); historical source-specific CI/deployment evidence below remains separate.
 
 ## Notifications, clearer copy and optional support — 24 October 2026
 
@@ -123,5 +133,5 @@ Run browser checks from `tests/e2e` with `E2E_BASE_URL` pointing to the running 
 ## Next three priorities
 
 1. Test actual phone-alert receipt with the owner, then enable owner administration privately after account registration. The public staging smoke and both complete source CI workflows have passed. Do not merge or provision Azure resources; the retained Azure path is optional future work with separate personal-account/free-tier review.
-2. Complete legal/operational review, configure support/mail, and recruit a small verified worker cohort with assisted onboarding.
+2. Complete legal/operational review and mail setup, and recruit a small verified worker cohort with assisted onboarding. Public support email/WhatsApp are now supplied and configured.
 3. Run a locality-focused pilot; measure request-to-confirmation conversion and worker response, then prioritize the largest observed usability issue and measure optional support payments separately from simulated bookings.

@@ -1,5 +1,25 @@
 import { expect, test } from '@playwright/test';
 
+test('public contact and support pages open directly and remain usable on a phone', async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 812 });
+  const response = await page.goto('/contact');
+  expect(response?.status()).toBe(200);
+  await expect(page.getByRole('heading', { name: 'Contact Daqqa t’Id', exact: true })).toBeVisible();
+  const main = page.locator('main');
+  await expect(main.getByRole('link', { name: 'WhatsApp: +356 9989 4619', exact: true })).toHaveAttribute('href', 'https://wa.me/35699894619');
+  await expect(main.getByRole('link', { name: 'markanthonymifsud@yahoo.com', exact: true })).toHaveAttribute('href', 'mailto:markanthonymifsud@yahoo.com');
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBeTruthy();
+  expect((await page.reload())?.status()).toBe(200);
+  const support = await page.goto('/support');
+  expect(support?.status()).toBe(200);
+  await expect(page.getByRole('heading', { name: 'Support a useful local service.', exact: true })).toBeVisible();
+  await page.locator('footer').getByRole('link', { name: 'Contact', exact: true }).click();
+  await expect(page).toHaveURL(/\/contact$/);
+  await page.goto('/forgot-password');
+  await page.getByRole('link', { name: 'Get help with your account', exact: true }).click();
+  await expect(page).toHaveURL(/\/contact$/);
+});
+
 test('a worker completes the three-step profile on a phone and gets clear hours feedback', async ({ page }) => {
   await page.setViewportSize({ width: 375, height: 812 });
   await page.goto('/');

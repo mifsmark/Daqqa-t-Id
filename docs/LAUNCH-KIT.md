@@ -24,7 +24,7 @@ Use a person’s name only in a message to them. Send individually to people who
 
 ### Facebook/local group admin permission request
 
-> Hello, I’m {{YOUR_NAME}} and I’m preparing a small early pilot of Daqqa t’Id, a local services marketplace. May I post one short invitation for Mosta cleaners and furniture assembly/setup workers to talk with me about joining? There are no promised jobs or earnings. I’ll follow the group rules, won’t message members individually, and will remove the post if you prefer. I can share the exact copy for approval first.
+> Hello, I’m preparing a small early pilot of Daqqa t’Id, a local services marketplace. May I post one short invitation for Mosta cleaners and furniture assembly/setup workers to talk with me about joining? There are no promised jobs or earnings. I’ll follow the group rules, won’t message members individually, and will remove the post if you prefer. I can share the exact copy for approval first.
 
 If the admin approves, post the exact approved copy once. If no reply or permission is given, do not post. Respect the group’s promotion and privacy rules.
 
@@ -32,9 +32,9 @@ If the admin approves, post the exact approved copy once. If no reply or permiss
 
 > **Mosta workers: help shape an early local-services pilot**
 >
-> I’m speaking with people who offer ordinary home cleaning or furniture assembly/setup. Daqqa t’Id is an early marketplace demo, not a source of guaranteed jobs or income. I’m looking for up to 10 workers who want to review a short pilot explanation and, if it suits them, set up their own profile for a small manually supported pilot. We’ll keep the scope to non-hazardous tasks; required verification still applies. Current staging payments are simulated. Interested? Contact me privately at {{FOUNDER_CONTACT}}. Please don’t post personal documents or private details here.
+> I’m speaking with people who offer ordinary home cleaning or furniture assembly/setup. Daqqa t’Id is an early marketplace demo, not a source of guaranteed jobs or income. I’m looking for up to 10 workers who want to review a short pilot explanation and, if it suits them, set up their own profile for a small manually supported pilot. We’ll keep the scope to non-hazardous tasks; required verification still applies. Current staging payments are simulated. Interested? Contact me privately at WhatsApp +356 9989 4619 (https://wa.me/35699894619) or markanthonymifsud@yahoo.com. Please don’t post personal documents or private details here.
 
-Do not publish the group post until the admin approves it. Replace `{{FOUNDER_CONTACT}}` with a contact channel the founder has chosen and is willing to monitor; do not invent or expose someone else’s contact details.
+Do not publish the group post until the admin approves it. The owner selected the public WhatsApp and email contacts shown here. Keep the final production URL as a placeholder until that deployment is verified.
 
 ## Customer invitation after the 10-worker gate
 
@@ -48,13 +48,13 @@ Use this version only if the live product actually presents accurate payment/fee
 
 ### Customer group admin permission request
 
-> Hello, I’m {{YOUR_NAME}}. After recruiting and onboarding an initial local worker cohort, I’d like to share one invitation for a small, supported Daqqa t’Id pilot in Mosta, limited to ordinary home cleaning and furniture assembly/setup. Could you approve one post? I can send you the exact wording first and will follow your group rules. I won’t message members individually or promise availability, vetted coverage, or guaranteed response times.
+> Hello. After recruiting and onboarding an initial local worker cohort, I’d like to share one invitation for a small, supported Daqqa t’Id pilot in Mosta, limited to ordinary home cleaning and furniture assembly/setup. Could you approve one post? I can send you the exact wording first and will follow your group rules. I won’t message members individually or promise availability, vetted coverage, or guaranteed response times.
 
 ### Approved customer-group post
 
 > **Small Mosta pilot: home cleaning and furniture assembly/setup**
 >
-> Daqqa t’Id is trying a small local pilot with a limited group of participating workers. Availability and prices are shown on each profile and must be confirmed by the worker; sending a request does not itself confirm a booking. The pilot covers ordinary, non-hazardous tasks only. Please read the terms and payment details shown on the site before confirming. Share feedback privately at {{FOUNDER_CONTACT}}. Pilot page: {{LIVE_PILOT_URL}}.
+> Daqqa t’Id is trying a small local pilot with a limited group of participating workers. Availability and prices are shown on each profile and must be confirmed by the worker; sending a request does not itself confirm a booking. The pilot covers ordinary, non-hazardous tasks only. Please read the terms and payment details shown on the site before confirming. Share feedback privately at WhatsApp +356 9989 4619 (https://wa.me/35699894619) or markanthonymifsud@yahoo.com. Pilot page: {{LIVE_PILOT_URL}}.
 
 Publish only with group-admin permission and only when every statement matches the live service. Do not claim workers are background-checked or verified unless the specific status and process support that exact claim.
 
@@ -73,7 +73,7 @@ Use the app’s three profile steps as the guide. The worker controls their acco
 
 Suggested plain-language consent check (operational record, not legal advice):
 
-> I understand this is an early, small pilot and there may be few or no requests. I reviewed the service, area, price, hours, and public profile details shown here. I agree to participate and to one follow-up about the pilot. I can ask for a correction, pause my availability, or leave by contacting {{FOUNDER_CONTACT}}. I understand any required verification is separate and is not complete until reviewed.
+> I understand this is an early, small pilot and there may be few or no requests. I reviewed the service, area, price, hours, and public profile details shown here. I agree to participate and to one follow-up about the pilot. I can ask for a correction, pause my availability, or leave by contacting WhatsApp +356 9989 4619 (https://wa.me/35699894619) or markanthonymifsud@yahoo.com. I understand any required verification is separate and is not complete until reviewed.
 
 Record the worker’s affirmative response and the date. Do not ask them to send identity documents by WhatsApp or group chat.
 
@@ -91,7 +91,7 @@ Requests are subject to worker acceptance.
 Open: {{LIVE_PILOT_URL}}?src={{SOURCE_TAG}}
 [QR CODE FOR THE EXACT URL ABOVE]
 
-Questions or feedback: {{FOUNDER_CONTACT}}
+Questions or feedback: WhatsApp +356 9989 4619 (https://wa.me/35699894619) or markanthonymifsud@yahoo.com
 ```
 
 For a worker profile card, replace the category description with the worker’s own approved profile link and only their reviewed service/locality wording. Remove the card if that worker pauses or changes the advertised service. Never print a staging QR as a customer acquisition link.

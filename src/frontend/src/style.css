@@ -835,8 +835,29 @@ button:disabled {
 }
 .footer > div:nth-of-type(2) {
   display: flex;
+  flex-wrap: wrap;
   gap: 20px;
   justify-content: flex-end;
+}
+.support-contacts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  font-style: normal;
+  margin: 1rem 0;
+}
+.support-contacts a {
+  overflow-wrap: anywhere;
+  max-width: 100%;
+}
+.support-contacts-compact {
+  font-size: 0.875rem;
+}
+.footer .support-contacts {
+  grid-column: 1/-1;
+  margin: 0;
+  font-size: inherit;
 }
 .section-note,
 .support-card > small {

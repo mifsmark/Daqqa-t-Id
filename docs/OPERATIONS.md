@@ -26,3 +26,8 @@ Use the assisted onboarding and recruitment checklist in LAUNCH-AND-GROWTH.md. S
 During helper onboarding, enable phone alerts only with the helper's explicit device permission and run a test. The inbox remains the fallback. Check actual new-request/confirmation receipt on the helper phone; a queued test is not proof of delivery. See [NOTIFICATIONS.md](NOTIFICATIONS.md). Privacy exports/deletions must account for owned notifications and device subscriptions, without exposing push endpoints or keys in public case records.
 
 Optional platform support uses an owner-configured Stripe-hosted checkout in Production only; staging always disables it. Reconcile actual money in Stripe, manage refunds there, and never treat the app's simulated booking ledger or a checkout return as income. See [MONETIZATION.md](MONETIZATION.md).
+
+
+## Public support contact
+
+The owner selected **markanthonymifsud@yahoo.com** and WhatsApp **+356 9989 4619** on 25 October 2026. Use [email](mailto:markanthonymifsud@yahoo.com) or [WhatsApp](https://wa.me/35699894619) for service, joining and privacy questions. No support response-time promise is configured. These are public contact links; adding an email address does not configure SMTP/password-reset delivery or authorize automatic account promotion.
