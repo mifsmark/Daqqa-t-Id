@@ -9,6 +9,18 @@ Start with a useful local service that people can recommend. Proposed first area
 
 These owner-selected contacts can be included in invitations. They do not configure password-reset delivery or establish an administrator account.
 
+## Public launch website for search and recruitment
+
+Share **https://daqqa-t-id.daqqatid-75d7e2e4.workers.dev/** for real brand information and expressions of interest. It is the search-facing public site, with pages explaining the service, helper recruitment and the owner’s contact details. IndexNow has acknowledged the public URLs; Google ownership verification is the next owner step.
+
+> A hand when you need one. Daqqa t’Id is getting ready to connect people in Malta and Gozo with local help. We’re welcoming cleaners and furniture assemblers interested in the first Mosta pilot.
+>
+> Find out more: https://daqqa-t-id.daqqatid-75d7e2e4.workers.dev/join
+>
+> Pilot recruitment; real bookings are not open yet.
+
+The public launch site and fictional demo are separate destinations. `{{LIVE_PILOT_URL}}` below still means the future real-booking service, not the launch information site.
+
 ## What can be shared today
 
 The working, publicly tested demo: https://daqqa-t-id-staging.daqqatid-75d7e2e4.workers.dev

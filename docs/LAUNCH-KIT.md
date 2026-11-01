@@ -4,6 +4,11 @@ Copy-ready material for the proposed Mosta pilot in [LAUNCH-AND-GROWTH.md](LAUNC
 
 ## Use the right link
 
+**Public launch/recruitment website usable now:** https://daqqa-t-id.daqqatid-75d7e2e4.workers.dev/
+
+Share it for brand information and pilot interest. Its `/join` page links to the owner’s email/WhatsApp. It has a search-facing sitemap and an acknowledged IndexNow notification; Google/Bing ownership verification and actual rankings remain unverified. It does not accept real bookings, so retain `{{LIVE_PILOT_URL}}` for the future booking launch.
+
+
 **Demo invitation usable now** — send this only to someone who wants to inspect the interface. The staging site contains fictional test records, is excluded from search indexing, and uses simulated payments. Ask them not to enter real personal or work information.
 
 > I’m testing an early demo of Daqqa t’Id, a Malta service marketplace. This link is a fictional staging demo: profiles and bookings are test data, and payments are simulated. Please don’t enter real personal, work, identity, or payment details. If you’re curious, you can look around here: https://daqqa-t-id-staging.daqqatid-75d7e2e4.workers.dev

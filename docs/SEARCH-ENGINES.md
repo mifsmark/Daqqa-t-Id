@@ -2,6 +2,8 @@
 
 The public launch website is **https://daqqa-t-id.daqqatid-75d7e2e4.workers.dev/**. It introduces Daqqa t’Id, explains the three ways to get help, gathers pilot interest through the owner's existing email/WhatsApp, and provides contact/privacy information. It accurately describes early access; it contains no invented providers, bookings, reviews or earnings.
 
+Verified on 1 November 2026: the public Worker is published and receives 100% traffic. The live discovery/proof checks passed, and IndexNow acknowledged five URLs with **HTTP 202 (key validation pending)**. Google/Bing account verification, actual indexation and rankings remain unverified; the owner’s public verification tags are still required. Source-specific CI and version evidence are in [PROGRESS.md](PROGRESS.md).
+
 The separate marketplace demo at `daqqa-t-id-staging.daqqatid-75d7e2e4.workers.dev` remains **noindex**, blocks crawlers in robots.txt and has no public sitemap. Its fictional records must not become search landing pages.
 
 ## Published discovery documents
