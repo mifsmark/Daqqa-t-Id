@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, type Route, test } from '@playwright/test';
 
 test('public contact and support pages open directly and remain usable on a phone', async ({ page }) => {
   await page.setViewportSize({ width: 375, height: 812 });
@@ -126,10 +126,41 @@ test('guest booking keeps the selected helper through login and signup links wit
   await expect(page.getByRole('combobox', { name: 'Helper', exact: true })).toHaveValue(workerId);
   const sessionResponse = await page.request.get('/api/session');
   const customerSession = await sessionResponse.json();
-  await page.request.post('/api/auth/logout', { headers: { 'X-CSRF-TOKEN': customerSession.csrfToken }, data: {} });
-  await page.goto('/login?returnTo=%2F%2Fevil.example');
-  await page.getByLabel('Email address').fill(email);
-  await page.getByLabel('Password').fill('Good-Password-2026');
-  await page.getByRole('button', { name: 'Log in', exact: true }).click();
-  await expect(page).toHaveURL(/\/dashboard$/);
+  const logout = await page.request.post('/api/auth/logout', { headers: { 'X-CSRF-TOKEN': customerSession.csrfToken }, data: {} });
+  expect(logout.status()).toBe(204);
+
+  let releaseSessionGate = () => {};
+  const sessionGate = new Promise<void>((resolve) => { releaseSessionGate = resolve; });
+  let heldInitialSession = false;
+  const holdInitialSession = async (route: Route) => {
+    if (!heldInitialSession) {
+      heldInitialSession = true;
+      await sessionGate;
+    }
+    await route.continue();
+  };
+  await page.route('**/api/session', holdInitialSession);
+  try {
+    await page.goto('/login?returnTo=%2F%2Fevil.example');
+    await page.getByLabel('Email address').fill(email);
+    await page.getByLabel('Password').fill('Good-Password-2026');
+    await expect.poll(() => heldInitialSession).toBe(true);
+    const loginButton = page.getByRole('button', { name: 'Log in', exact: true });
+    await expect(loginButton).toBeDisabled();
+
+    releaseSessionGate();
+    await expect(loginButton).toBeEnabled();
+    const [loginResponse] = await Promise.all([
+      page.waitForResponse((response) =>
+        new URL(response.url()).pathname === '/api/auth/login' &&
+        response.request().method() === 'POST',
+      ),
+      loginButton.click(),
+    ]);
+    expect(loginResponse.ok()).toBeTruthy();
+    await expect(page).toHaveURL(/\/dashboard$/);
+  } finally {
+    releaseSessionGate();
+    await page.unroute('**/api/session', holdInitialSession);
+  }
 });

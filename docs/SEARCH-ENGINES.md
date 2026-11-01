@@ -16,6 +16,8 @@ These pages render full content without JavaScript, have unique titles/descripti
 
 ## Google Search Console — owner login required
 
+For a phone-friendly walkthrough covering both accounts, use [GOOGLE-BING-MOBILE-SETUP.md](GOOGLE-BING-MOBILE-SETUP.md).
+
 1. Open [Google Search Console](https://search.google.com/search-console).
 2. Add a **URL-prefix** property for `https://daqqa-t-id.daqqatid-75d7e2e4.workers.dev/`. A workers.dev subdomain uses URL-prefix verification; the owner does not control Cloudflare's parent-domain DNS.
 3. Choose **HTML tag** and copy its public `google-site-verification` tag. Give the tag or content value to the app operator; no Google password, login code or private credential is needed.

@@ -1013,6 +1013,12 @@ function Auth({ register = false }: { register?: boolean }) {
   const [err, setErr] = useState("");
   const nav = useNavigate();
   const qc = useQueryClient();
+  const {
+    data: session,
+    isLoading: sessionLoading,
+    isError: sessionError,
+    refetch: retrySession,
+  } = useSession();
   const [busy, setBusy] = useState(false);
   const switchParams = new URLSearchParams();
   if (params.get("returnTo"))
@@ -1020,6 +1026,12 @@ function Auth({ register = false }: { register?: boolean }) {
   const authSwitchPath = `${register ? "/login" : "/register"}${switchParams.size ? `?${switchParams}` : ""}`;
   async function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    if (busy) return;
+    if (!session?.csrfToken) {
+      setErr("Your session is still loading. Please try again when it is ready.");
+      return;
+    }
+    setCsrf(session.csrfToken);
     setErr("");
     setBusy(true);
     const d = Object.fromEntries(new FormData(e.currentTarget));
@@ -1110,12 +1122,23 @@ function Auth({ register = false }: { register?: boolean }) {
               autoComplete={register ? "new-password" : "current-password"}
             />
           </label>
+          {sessionLoading && (
+            <p role="status">Preparing your secure session…</p>
+          )}
+          {sessionError && (
+            <p className="form-error" role="alert">
+              We couldn’t check your session.{" "}
+              <button type="button" className="link-button" onClick={() => void retrySession()}>
+                Try again
+              </button>
+            </p>
+          )}
           {err && (
             <p className="form-error" role="alert">
               {err}
             </p>
           )}
-          <button className="button button-full" disabled={busy}>
+          <button className="button button-full" disabled={busy || !session?.csrfToken}>
             {busy ? "Please wait…" : register ? "Create account" : "Log in"}{" "}
             <ArrowRight />
           </button>
@@ -1322,7 +1345,11 @@ function Join() {
 function useSession() {
   return useQuery({
     queryKey: ["session"],
-    queryFn: () => api<Session>("/api/session"),
+    queryFn: async () => {
+      const session = await api<Session>("/api/session");
+      setCsrf(session.csrfToken);
+      return session;
+    },
     retry: false,
   });
 }
