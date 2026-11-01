@@ -45,6 +45,7 @@ describe('public launch site for search engines', () => {
     expect((await get('/not-the-key.txt')).status).toBe(404);
     expect((await get(`/${key}.txt`, { PUBLIC_ORIGIN: origin })).status).toBe(404);
     expect((await get('/bad_key_123.txt', { PUBLIC_ORIGIN: origin, INDEXNOW_KEY: 'bad_key_123' })).status).toBe(404);
+    expect((await get(`/${key}.txt`, { PUBLIC_ORIGIN: origin, INDEXNOW_KEY: key + '\n' })).status).toBe(404);
   });
 
   it('renders only valid server-configured verification tags and prevents configuration injection', async () => {
@@ -56,6 +57,9 @@ describe('public launch site for search engines', () => {
     expect(invalid).not.toContain('msvalidate.01');
     expect(invalid).not.toContain('query_override');
     expect(invalid).not.toContain('alert(1)');
+    const newline = await (await get('/', { ...env, GOOGLE_SITE_VERIFICATION: 'Google_token\n', BING_SITE_VERIFICATION: 'Bing_token\r\n' })).text();
+    expect(newline).not.toContain('google-site-verification');
+    expect(newline).not.toContain('msvalidate.01');
   });
 
   it('keeps private and missing routes as true noindex 404s and rejects writes', async () => {

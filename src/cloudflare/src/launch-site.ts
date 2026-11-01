@@ -20,7 +20,7 @@ const siteIcon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
 const verificationPattern = /^[A-Za-z0-9_-]{8,128}$/;
 
 function isVerificationValue(value: string | undefined): value is string {
-  return value !== undefined && verificationPattern.test(value);
+  return value !== undefined && value.match(verificationPattern)?.[0] === value;
 }
 
 function escapeHtml(value: string): string {
@@ -229,7 +229,7 @@ function renderSitemap(origin: string): string {
 }
 
 function validateIndexNowKey(value: string | undefined): value is string {
-  return value !== undefined && /^[A-Za-z0-9-]{8,128}$/.test(value);
+  return value !== undefined && value.match(/^[A-Za-z0-9-]{8,128}$/)?.[0] === value;
 }
 
 export default {
