@@ -1,0 +1,29 @@
+{
+  "name": "daqqa-t-id-cloudflare",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "types": "wrangler types worker-configuration.d.ts",
+    "check": "npm run types && tsc --noEmit",
+    "test": "vitest run",
+    "dev": "npm run build:assets && wrangler d1 migrations apply daqqa-t-id --local && wrangler dev --ip 127.0.0.1",
+    "build:assets": "npm run build --prefix ../frontend",
+    "deploy:dry-run": "npm run build:assets && wrangler deploy --dry-run",
+    "deploy:staging": "npm run build:assets && wrangler deploy --env staging",
+    "deploy:production": "npm run build:assets && wrangler deploy --env production"
+  },
+  "devDependencies": {
+    "@cloudflare/vitest-plugin": "1.4.7",
+    "@types/node": "22.19.7",
+    "typescript": "5.9.3",
+    "vitest": "4.1.12",
+    "wrangler": "4.152.0"
+  },
+  "dependencies": {
+    "@block65/webcrypto-web-push": "2.0.0"
+  }
+}

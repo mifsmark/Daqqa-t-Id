@@ -1,0 +1,33 @@
+services:
+  app:
+    build: .
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_HTTP_PORTS: "8080"
+      PublicOrigin: "http://localhost:8080"
+      Database__SeedReferenceDataOnStartup: "true"
+      ConnectionStrings__DefaultConnection: "Server=sql,1433;Database=DaqqaTid;User Id=sa;Password=${MSSQL_SA_PASSWORD:?Set MSSQL_SA_PASSWORD in your shell or ignored .env file};Encrypt=False;TrustServerCertificate=True"
+    ports:
+      - "127.0.0.1:8080:8080"
+    depends_on:
+      sql:
+        condition: service_healthy
+  sql:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_PID: Developer
+      MSSQL_MEMORY_LIMIT_MB: "2048"
+      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD:?Set MSSQL_SA_PASSWORD in your shell or ignored .env file}
+    ports:
+      - "127.0.0.1:1433:1433"
+    volumes:
+      - daqqatid-sql:/var/opt/mssql
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P \"$$MSSQL_SA_PASSWORD\" -Q 'SELECT 1' >/dev/null"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+volumes:
+  daqqatid-sql:
