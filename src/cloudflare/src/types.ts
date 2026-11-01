@@ -4,6 +4,8 @@ export interface Env {
   MEDIA: KVNamespace;
   ASSETS: Fetcher;
   PUBLIC_ORIGIN?: string;
+  GOOGLE_SITE_VERIFICATION?: string;
+  BING_SITE_VERIFICATION?: string;
   ENVIRONMENT?: 'development' | 'staging' | 'production';
   STAGING_DEMO_ENABLED?: string;
   STAGING_DEMO_DATABASE_NAME?: string;

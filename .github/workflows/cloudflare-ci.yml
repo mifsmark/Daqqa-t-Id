@@ -42,11 +42,31 @@ jobs:
       - name: Validate Worker and static asset bundle
         run: npx wrangler deploy --dry-run --env=""
         working-directory: src/cloudflare
+      - name: Validate public search launch site
+        run: npx wrangler deploy --config wrangler.launch.jsonc --dry-run --outdir "$RUNNER_TEMP/daqqa-launch-worker"
+        working-directory: src/cloudflare
+      - name: Validate IndexNow submission configuration without sending
+        run: python3 scripts/submit-indexnow.py
       - name: Install browser journey dependencies
         run: npm ci --prefix tests/e2e
       - name: Install Chromium for Playwright
         run: npx playwright install --with-deps chromium
         working-directory: tests/e2e
+      - name: Start public launch site
+        run: |
+          nohup ./node_modules/.bin/wrangler dev --config wrangler.launch.jsonc --ip 127.0.0.1 --port 8791 > "$RUNNER_TEMP/public-launch-worker.log" 2>&1 &
+          echo $! > "$RUNNER_TEMP/public-launch-worker.pid"
+          for attempt in $(seq 1 30); do
+            if curl --silent --show-error --fail http://127.0.0.1:8791/robots.txt; then exit 0; fi
+            sleep 1
+          done
+          cat "$RUNNER_TEMP/public-launch-worker.log"
+          exit 1
+        working-directory: src/cloudflare
+      - name: Check public search pages on a phone without JavaScript
+        run: node tests/e2e/launch-site-smoke.mjs
+        env:
+          PUBLIC_LAUNCH_BASE_URL: http://127.0.0.1:8791
       - name: Apply local D1 migrations
         run: npx wrangler d1 migrations apply daqqa-t-id --local
         working-directory: src/cloudflare
@@ -74,10 +94,11 @@ jobs:
           name: cloudflare-browser-failure
           path: |
             ${{ runner.temp }}/cloudflare-worker.log
+            ${{ runner.temp }}/public-launch-worker.log
             tests/e2e/test-results/
       - name: Stop local Cloudflare Worker
         if: always()
         run: |
-          if [ -f "$RUNNER_TEMP/cloudflare-worker.pid" ]; then
-            kill "$(cat "$RUNNER_TEMP/cloudflare-worker.pid")" || true
-          fi
+          for worker_pid_file in "$RUNNER_TEMP/cloudflare-worker.pid" "$RUNNER_TEMP/public-launch-worker.pid"; do
+            if [ -f "$worker_pid_file" ]; then kill "$(cat "$worker_pid_file")" || true; fi
+          done

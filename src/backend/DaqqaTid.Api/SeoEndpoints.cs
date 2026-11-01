@@ -95,6 +95,9 @@ public static partial class SeoEndpoints
         html = DescriptionTag().Replace(html, "");
         var origin = Origin(cfg);
         var meta = $"<meta name=\"description\" content=\"{E(description)}\"><meta property=\"og:type\" content=\"website\"><meta property=\"og:title\" content=\"{E(title)}\"><meta property=\"og:description\" content=\"{E(description)}\"><meta name=\"twitter:card\" content=\"summary\">";
+        if (env.IsProduction())
+            meta += VerificationMeta("google-site-verification", cfg["Search:GoogleSiteVerification"])
+                + VerificationMeta("msvalidate.01", cfg["Search:BingSiteVerification"]);
         var canonicalPath = string.IsNullOrEmpty(path) ? "/" : path;
         if (origin is not null) meta += $"<link rel=\"canonical\" href=\"{E(origin + canonicalPath)}\"><meta property=\"og:url\" content=\"{E(origin + canonicalPath)}\">";
         if (noindex) meta += "<meta name=\"robots\" content=\"noindex, nofollow\">";
@@ -103,6 +106,10 @@ public static partial class SeoEndpoints
         if (noindex && context is not null) context.Response.Headers["X-Robots-Tag"] = "noindex, nofollow";
         return Results.Content(html, "text/html; charset=utf-8");
     }
+    private static string VerificationMeta(string name, string? value) =>
+        value is not null && Regex.IsMatch(value, "\\A[A-Za-z0-9_-]{8,128}\\z")
+            ? $"<meta name=\"{name}\" content=\"{E(value)}\">"
+            : "";
     [GeneratedRegex("<title>.*?</title>", RegexOptions.Singleline | RegexOptions.IgnoreCase)] private static partial Regex TitleTag();
     [GeneratedRegex("<meta\\s+name=[\"']description[\"'][^>]*>", RegexOptions.IgnoreCase)] private static partial Regex DescriptionTag();
 }

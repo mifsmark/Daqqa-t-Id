@@ -100,25 +100,53 @@ public sealed class HostingSmokeTests : IAsyncLifetime
         Assert.Contains("href=\"/contact\"", supportHtml);
     }
 
+    [Fact]
+    public async Task Search_verification_metadata_uses_only_valid_production_configuration()
+    {
+        await using var productionFactory = new OfflineSqlFactory("Production", "Google_token-1234", "Bing_token-123456");
+        using var productionClient = productionFactory.CreateClient(new WebApplicationFactoryClientOptions { BaseAddress = new Uri("https://localhost") });
+        var productionHtml = await productionClient.GetStringAsync("/");
+        Assert.Contains("<meta name=\"google-site-verification\" content=\"Google_token-1234\">", productionHtml);
+        Assert.Contains("<meta name=\"msvalidate.01\" content=\"Bing_token-123456\">", productionHtml);
+
+        await using var invalidFactory = new OfflineSqlFactory("Production", "bad\" ><meta name=\"injected\" content=\"x", "Bing_token\n");
+        using var invalidClient = invalidFactory.CreateClient(new WebApplicationFactoryClientOptions { BaseAddress = new Uri("https://localhost") });
+        var invalidHtml = await invalidClient.GetStringAsync("/");
+        Assert.DoesNotContain("google-site-verification", invalidHtml);
+        Assert.DoesNotContain("msvalidate.01", invalidHtml);
+        Assert.DoesNotContain("name=\"injected\"", invalidHtml);
+        Assert.DoesNotContain("<meta name=\"robots\"", invalidHtml);
+    }
+
     private sealed class OfflineSqlFactory : WebApplicationFactory<Program>
     {
         private readonly string webRoot = Path.Combine(Path.GetTempPath(), "daqqa-hosting-smoke-" + Guid.NewGuid().ToString("N"));
+        private readonly string environment;
+        private readonly string? googleVerification;
+        private readonly string? bingVerification;
 
-        public OfflineSqlFactory()
+        public OfflineSqlFactory(string environment = "Development", string? googleVerification = null, string? bingVerification = null)
         {
+            this.environment = environment;
+            this.googleVerification = googleVerification;
+            this.bingVerification = bingVerification;
             Directory.CreateDirectory(webRoot);
             File.WriteAllText(Path.Combine(webRoot, "index.html"), "<!doctype html><html><head><title>Daqqa t’Id</title></head><body><div id=\"root\"></div></body></html>");
         }
 
         protected override void ConfigureWebHost(IWebHostBuilder builder)
         {
-            builder.UseEnvironment("Development");
+            builder.UseEnvironment(environment);
+            builder.UseSetting(WebHostDefaults.EnvironmentKey, environment);
             builder.UseWebRoot(webRoot);
+            builder.UseSetting("ConnectionStrings:DefaultConnection", "Server=127.0.0.1,1;Database=Unavailable;User Id=invalid;Password=invalid;TrustServerCertificate=True;Connect Timeout=1");
             builder.ConfigureAppConfiguration((_, configuration) => configuration.AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["ConnectionStrings:DefaultConnection"] = "Server=127.0.0.1,1;Database=Unavailable;User Id=invalid;Password=invalid;TrustServerCertificate=True;Connect Timeout=1",
                 ["Database:SeedReferenceDataOnStartup"] = "false",
                 ["PublicOrigin"] = "https://market.example",
+                ["Search:GoogleSiteVerification"] = googleVerification,
+                ["Search:BingSiteVerification"] = bingVerification,
                 ["MAIL_HOST"] = "",
                 ["MAIL_FROM"] = "",
                 ["MAIL_PORT"] = ""

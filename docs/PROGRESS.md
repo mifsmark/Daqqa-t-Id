@@ -1,10 +1,20 @@
-# Delivery progress — 25 October 2026
+# Delivery progress — 1 November 2026
 
 ## Status
 
 The original .NET/SQL Server MVP remains available on `feat/marketplace-mvp`, with an additional Cloudflare Workers/D1/KV backend using the same React app and API contract. Cloudflare staging has been published at **https://daqqa-t-id-staging.daqqatid-75d7e2e4.workers.dev**. The notification release is deployed and its public HTTPS booking/notification/photo/review smoke passed. Actual phone OS alert display still requires an opted-in device. No Azure resources, paid Cloudflare subscription or production payments have been created. PR #1 remains open and unmerged.
 
 Lower-cost GPT-6 Luna agents implemented the backend, frontend, infrastructure and tests under the primary agent's architectural, security and integration review. Initial network blocks on SQL downloads and GitHub API access were resolved after the saved network configuration became effective; both operations now work.
+
+## Google/Bing search visibility — 1 November 2026
+
+Prepared a separate, indexable public launch/recruitment website at **https://daqqa-t-id.daqqatid-75d7e2e4.workers.dev/** using a standalone Cloudflare Free Worker. It has five useful server-rendered pages, real owner contact details, clear early-pilot status, canonical URLs, unique metadata, a sitemap/robots, a brand favicon and truthful Organization/WebSite structured data. It has no database, accounts, payment collection, forms, analytics or client JavaScript. The fictional marketplace remains separately protected from indexing. The unrelated `strong-again` Worker is not part of this project and was not modified.
+
+Added Google Search Console/Bing Webmaster HTML ownership-tag support, with strict validation, to the public site and both retained marketplace implementations; marketplace tags are Production-only and do not remove any staging guards. The owner must still provide public verification tags and complete ownership checks in their accounts. No Google/Microsoft login or account credentials are available here, and no property verification is claimed.
+
+Added an IndexNow public proof file and `scripts/submit-indexnow.py`. Its default mode is read-only. Explicit submission first checks the exact public sitemap, robots policy, canonical URLs, noindex status and hosted key, and sends only the five public URLs. Receipt, indexation and ranking are separate results. See [SEARCH-ENGINES.md](SEARCH-ENGINES.md) for owner steps, supported configuration and deployment targets. Live publication/submission results will be recorded after the verified release.
+
+Local verification: **48 workerd/D1/launch-site tests passed**, Worker TypeScript checks and standalone bundle dry run passed; all **three focused .NET hosting tests** passed, along with format verification. The actual 375px browser smoke passed across all five public documents with JavaScript disabled, checking canonical URLs, contact links, schema and overflow. Cloudflare CI now includes the standalone bundle, a read-only IndexNow configuration check and the public-site browser smoke alongside the six existing marketplace journeys. No new paid subscription, Azure resource or PR merge was created.
 
 ## Public support and promotion contact — 25 October 2026
 

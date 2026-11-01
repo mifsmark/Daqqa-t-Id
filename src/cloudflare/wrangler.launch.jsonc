@@ -1,0 +1,12 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "daqqa-t-id",
+  "main": "src/launch-site.ts",
+  "compatibility_date": "2026-10-23",
+  "workers_dev": true,
+  "preview_urls": false,
+  "vars": {
+    "PUBLIC_ORIGIN": "https://daqqa-t-id.daqqatid-75d7e2e4.workers.dev",
+    "INDEXNOW_KEY": "f9e064c796407f7ad402624d7c523012"
+  }
+}

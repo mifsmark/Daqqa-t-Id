@@ -142,7 +142,11 @@ async function renderPage(c: Context, page: PageOptions): Promise<Response> {
   let html = await asset.text();
   const title = escapeHtml(page.title), description = escapeHtml(page.description);
   const canonical = origin(c) ? `${origin(c)}${page.canonicalPath}` : null;
+  const verification = c.env.ENVIRONMENT === 'production'
+    ? `${verificationMeta('google-site-verification', c.env.GOOGLE_SITE_VERIFICATION)}${verificationMeta('msvalidate.01', c.env.BING_SITE_VERIFICATION)}`
+    : '';
   const tags = `<meta name="description" content="${description}"><meta property="og:type" content="website"><meta property="og:title" content="${title}"><meta property="og:description" content="${description}"><meta name="twitter:card" content="summary">` +
+    verification +
     (canonical ? `<link rel="canonical" href="${escapeHtml(canonical)}"><meta property="og:url" content="${escapeHtml(canonical)}">` : '') +
     (page.noindex || STAGING(c) ? `<meta name="robots" content="noindex, ${page.follow && !STAGING(c) ? 'follow' : 'nofollow'}">` : '') +
     (page.schema === undefined ? '' : `<script type="application/ld+json">${safeJson(page.schema)}</script>`);
@@ -153,6 +157,11 @@ async function renderPage(c: Context, page: PageOptions): Promise<Response> {
   const headers = new Headers({ 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
   if (page.noindex || STAGING(c)) headers.set('X-Robots-Tag', `noindex, ${page.follow && !STAGING(c) ? 'follow' : 'nofollow'}`);
   return new Response(c.request.method === 'HEAD' ? null : html, { headers });
+}
+
+function verificationMeta(name: string, value: string | undefined): string {
+  if (!value || value.match(/^[A-Za-z0-9_-]{8,128}$/)?.[0] !== value) return '';
+  return `<meta name="${name}" content="${escapeHtml(value)}">`;
 }
 
 function origin(c: Context): string | null {
